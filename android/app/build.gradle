@@ -101,6 +101,13 @@ android {
             applicationIdSuffix '.debug'
             signingConfig signingConfigs.debug
         }
+        // Fork: profile builds share the debug app id (and debug signing), so the
+        // Shield can switch between the fast profile build for everyday use and
+        // the hot-reload debug build without losing Arc's settings, dock or apps.
+        profile {
+            applicationIdSuffix '.debug'
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled true
             shrinkResources true
