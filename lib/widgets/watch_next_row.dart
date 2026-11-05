@@ -89,7 +89,8 @@ class WatchNextRow extends StatelessWidget {
           );
         }
 
-        if (data.isLoading) {
+        // Hide only during the first load; refreshes keep the cards.
+        if (data.isLoading && data.items.isEmpty) {
           return const SizedBox.shrink();
         }
 
