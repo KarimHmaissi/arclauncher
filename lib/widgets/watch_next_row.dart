@@ -17,6 +17,7 @@
  */
 
 import 'package:flauncher/models/watch_next_item.dart';
+import 'package:flauncher/widgets/watch_next_focus.dart';
 import 'package:flauncher/actions.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
@@ -233,52 +234,45 @@ class _WatchNextCleanRow extends StatefulWidget {
 
 class _WatchNextCleanRowState extends State<_WatchNextCleanRow> {
   final ScrollController _scrollController = ScrollController();
-  final List<FocusNode> _focusNodes = [];
+  final WatchNextFocusNodes _focusNodes = WatchNextFocusNodes();
   double? _lastScrollTarget;
 
   @override
   void initState() {
     super.initState();
-    _createFocusNodes();
+    WatchNextFocusRequests.requests.addListener(_focusFirst);
   }
 
   @override
   void didUpdateWidget(covariant _WatchNextCleanRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.items.length != widget.items.length) {
-      _disposeFocusNodes();
-      _createFocusNodes();
-    }
-  }
-
-  void _createFocusNodes() {
-    _focusNodes.clear();
-    for (int i = 0; i < widget.items.length; i++) {
-      _focusNodes.add(FocusNode());
-    }
-  }
-
-  void _disposeFocusNodes() {
-    for (var node in _focusNodes) {
-      node.dispose();
-    }
-    _focusNodes.clear();
+    // Nodes follow each item's identity, so a reorder of the same items
+    // keeps focus on the same card instead of the same slot.
+    _focusNodes.retainOnly(widget.items);
   }
 
   @override
   void dispose() {
+    WatchNextFocusRequests.requests.removeListener(_focusFirst);
     _scrollController.dispose();
-    _disposeFocusNodes();
+    _focusNodes.dispose();
     super.dispose();
+  }
+
+  void _focusFirst() {
+    if (!mounted || widget.items.isEmpty) return;
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    _lastScrollTarget = null;
+    _focusNodes.nodeFor(widget.items.first).requestFocus();
   }
 
   KeyEventResult _handleNavigationKey(int index, LogicalKeyboardKey key) {
     if (key == LogicalKeyboardKey.arrowRight && index < widget.items.length - 1) {
-      _focusNodes[index + 1].requestFocus();
+      _focusNodes.nodeFor(widget.items[index + 1]).requestFocus();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft && index > 0) {
-      _focusNodes[index - 1].requestFocus();
+      _focusNodes.nodeFor(widget.items[index - 1]).requestFocus();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -337,7 +331,7 @@ class _WatchNextCleanRowState extends State<_WatchNextCleanRow> {
           final item = widget.items[index];
           return _WatchNextCard(
             item: item,
-            focusNode: _focusNodes[index],
+            focusNode: _focusNodes.nodeFor(item),
             autofocus: widget.isFirstSection && index == 0,
             onFocusChanged: (focused) => _onFocusChanged(index, focused),
             onNavigationKey: (key) => _handleNavigationKey(index, key),

@@ -950,6 +950,18 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get watchNextResume;
 
+  /// No description provided for @watchNextStartOnContinueWatching.
+  ///
+  /// In en, this message translates to:
+  /// **'Start on Continue Watching'**
+  String get watchNextStartOnContinueWatching;
+
+  /// No description provided for @watchNextStartOnContinueWatchingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Home, Back and coming back to Arc land on your first Watch Next card'**
+  String get watchNextStartOnContinueWatchingDescription;
+
   /// No description provided for @watchNextRefresh.
   ///
   /// In en, this message translates to:

@@ -464,6 +464,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get watchNextResume => 'Reanudar';
 
   @override
+  String get watchNextStartOnContinueWatching => 'Start on Continue Watching';
+
+  @override
+  String get watchNextStartOnContinueWatchingDescription =>
+      'Home, Back and coming back to Arc land on your first Watch Next card';
+
+  @override
   String get watchNextRefresh => 'Actualizar contenido';
 
   @override
