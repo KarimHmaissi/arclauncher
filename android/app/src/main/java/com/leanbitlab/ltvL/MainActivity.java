@@ -80,25 +80,29 @@ public class MainActivity extends FlutterActivity {
     private static final int REQUEST_CODE_READ_TV_LISTINGS = 1001;
     private static final String COLUMN_ASPECT_RATIO = "aspect_ratio";
     private MethodChannel methodChannel;
-    private boolean resumed = false;
+    // Started (visible) rather than resumed: Android always pauses an activity
+    // before onNewIntent, so "resumed" is never true there. Arc stays started
+    // when Home is pressed while it is in front, and is stopped when Home
+    // brings it back from another app.
+    private boolean started = false;
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        resumed = true;
+    protected void onStart() {
+        super.onStart();
+        started = true;
     }
 
     @Override
-    protected void onPause() {
-        resumed = false;
-        super.onPause();
+    protected void onStop() {
+        started = false;
+        super.onStop();
     }
 
     /** Home pressed while Arc is already in front: tell Dart, which lands on Watch Next[0]. */
     @Override
     protected void onNewIntent(@NonNull Intent intent) {
         super.onNewIntent(intent);
-        if (resumed && intent.hasCategory(Intent.CATEGORY_HOME) && methodChannel != null) {
+        if (started && intent.hasCategory(Intent.CATEGORY_HOME) && methodChannel != null) {
             methodChannel.invokeMethod("homePressed", null);
         }
     }
