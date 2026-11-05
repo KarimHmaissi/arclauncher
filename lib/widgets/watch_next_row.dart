@@ -501,7 +501,8 @@ class _WatchNextCardState extends State<_WatchNextCard> {
                           bottom: 0,
                           child: _buildCardLabels(showDescription: _isHovered),
                         ),
-                        if (_isHovered) _buildProgressIndicator(),
+                        // Progress shows on every card, not just the focused one.
+                        _buildProgressIndicator(),
                         if (_isHovered && showFocusBorders)
                           IgnorePointer(
                             child: CustomPaint(
