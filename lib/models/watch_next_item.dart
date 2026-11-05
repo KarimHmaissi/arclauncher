@@ -30,6 +30,10 @@ class WatchNextItem {
   final String? intentUri;
   final int? watchNextType;
   final String? aspectRatio;
+  final int? lastPlaybackPosition;
+  final String? episodeTitle;
+  final String? seasonNumber;
+  final String? episodeNumber;
 
   WatchNextItem({
     required this.id,
@@ -45,7 +49,39 @@ class WatchNextItem {
     this.intentUri,
     this.watchNextType,
     this.aspectRatio,
+    this.lastPlaybackPosition,
+    this.episodeTitle,
+    this.seasonNumber,
+    this.episodeNumber,
   });
+
+  /// Minutes still to watch, rounded up; null without a usable position.
+  int? get minutesLeft {
+    final total = duration;
+    final position = lastPlaybackPosition;
+    if (total == null || total <= 0 || position == null || position <= 0) return null;
+    final remaining = total - position;
+    if (remaining <= 0) return 0;
+    return (remaining / 60000).ceil();
+  }
+
+  /// The card's second line: "S3 · E7 · 22 min left", or "S3 · E7 · New" for
+  /// an episode that hasn't been started. Null when the publisher gave
+  /// nothing to say (the card then keeps its generic label).
+  String? subtitle({required String newLabel, required String Function(int minutes) minutesLeftLabel}) {
+    final parts = <String>[];
+    final season = seasonNumber?.trim();
+    final episode = episodeNumber?.trim();
+    if (season != null && season.isNotEmpty) parts.add('S$season');
+    if (episode != null && episode.isNotEmpty) parts.add('E$episode');
+    final left = minutesLeft;
+    if (left != null) {
+      parts.add(minutesLeftLabel(left));
+    } else if (parts.isNotEmpty && (lastPlaybackPosition ?? 0) == 0) {
+      parts.add(newLabel);
+    }
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 
   bool get hasImage {
     final poster = posterUri?.trim();
@@ -70,6 +106,10 @@ class WatchNextItem {
       intentUri: map['intentUri'],
       watchNextType: map['watchNextType'],
       aspectRatio: map['aspectRatio'],
+      lastPlaybackPosition: map['lastPlaybackPosition'],
+      episodeTitle: map['episodeTitle'],
+      seasonNumber: map['seasonNumber']?.toString(),
+      episodeNumber: map['episodeNumber']?.toString(),
     );
   }
 
@@ -88,6 +128,10 @@ class WatchNextItem {
       'intentUri': intentUri,
       'watchNextType': watchNextType,
       'aspectRatio': aspectRatio,
+      'lastPlaybackPosition': lastPlaybackPosition,
+      'episodeTitle': episodeTitle,
+      'seasonNumber': seasonNumber,
+      'episodeNumber': episodeNumber,
     };
   }
 }

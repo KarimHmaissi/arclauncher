@@ -787,7 +787,11 @@ public class MainActivity extends FlutterActivity {
                 TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS,
                 TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS,
                 TvContract.WatchNextPrograms.COLUMN_INTENT_URI,
-                TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE
+                TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE,
+                TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
+                TvContract.WatchNextPrograms.COLUMN_EPISODE_TITLE,
+                TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
+                TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER
             };
 
             String sortOrder = TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS + " DESC";
@@ -819,6 +823,10 @@ public class MainActivity extends FlutterActivity {
                             int intentUriIndex = cursor.getColumnIndex(TvContract.WatchNextPrograms.COLUMN_INTENT_URI);
                             int watchTypeIndex = cursor.getColumnIndex(TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE);
                             int aspectRatioIndex = cursor.getColumnIndex(COLUMN_ASPECT_RATIO);
+                            int positionIndex = cursor.getColumnIndex(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS);
+                            int episodeTitleIndex = cursor.getColumnIndex(TvContract.WatchNextPrograms.COLUMN_EPISODE_TITLE);
+                            int seasonIndex = cursor.getColumnIndex(TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER);
+                            int episodeIndex = cursor.getColumnIndex(TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER);
 
                             String title = (titleIndex >= 0 && !cursor.isNull(titleIndex))
                                 ? cursor.getString(titleIndex) : null;
@@ -857,7 +865,22 @@ public class MainActivity extends FlutterActivity {
                                 item.put("lastEngagementDate", cursor.getLong(lastEngIndex));
                             }
 
-                            item.put("progressPercent", 0);
+                            Integer duration = (durationIndex >= 0 && !cursor.isNull(durationIndex))
+                                ? cursor.getInt(durationIndex) : null;
+                            Integer position = (positionIndex >= 0 && !cursor.isNull(positionIndex))
+                                ? cursor.getInt(positionIndex) : null;
+                            item.put("lastPlaybackPosition", position);
+                            item.put("episodeTitle", (episodeTitleIndex >= 0 && !cursor.isNull(episodeTitleIndex))
+                                ? cursor.getString(episodeTitleIndex) : null);
+                            item.put("seasonNumber", (seasonIndex >= 0 && !cursor.isNull(seasonIndex))
+                                ? cursor.getString(seasonIndex) : null);
+                            item.put("episodeNumber", (episodeIndex >= 0 && !cursor.isNull(episodeIndex))
+                                ? cursor.getString(episodeIndex) : null);
+                            int progressPercent = 0;
+                            if (duration != null && duration > 0 && position != null && position > 0) {
+                                progressPercent = (int) Math.max(1, Math.min(100, Math.round(position * 100.0 / duration)));
+                            }
+                            item.put("progressPercent", progressPercent);
 
                             items.add(item);
                             count++;

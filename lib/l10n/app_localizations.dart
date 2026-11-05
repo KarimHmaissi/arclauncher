@@ -950,6 +950,18 @@ abstract class AppLocalizations {
   /// **'Resume'**
   String get watchNextResume;
 
+  /// Watch Next card: an episode that hasn't been started
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get watchNextNew;
+
+  /// Watch Next card: time still to watch
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min left'**
+  String watchNextMinutesLeft(int minutes);
+
   /// No description provided for @watchNextRefresh.
   ///
   /// In en, this message translates to:

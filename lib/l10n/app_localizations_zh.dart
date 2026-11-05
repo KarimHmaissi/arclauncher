@@ -453,6 +453,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get watchNextResume => '继续播放';
 
   @override
+  String get watchNextNew => 'New';
+
+  @override
+  String watchNextMinutesLeft(int minutes) {
+    return '$minutes min left';
+  }
+
+  @override
   String get watchNextRefresh => '刷新内容';
 
   @override

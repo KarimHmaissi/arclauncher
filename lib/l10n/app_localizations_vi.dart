@@ -461,6 +461,14 @@ class AppLocalizationsVi extends AppLocalizations {
   String get watchNextResume => 'Tiếp tục xem';
 
   @override
+  String get watchNextNew => 'New';
+
+  @override
+  String watchNextMinutesLeft(int minutes) {
+    return '$minutes min left';
+  }
+
+  @override
   String get watchNextRefresh => 'Làm mới nội dung';
 
   @override

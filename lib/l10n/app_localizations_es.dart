@@ -464,6 +464,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get watchNextResume => 'Reanudar';
 
   @override
+  String get watchNextNew => 'New';
+
+  @override
+  String watchNextMinutesLeft(int minutes) {
+    return '$minutes min left';
+  }
+
+  @override
   String get watchNextRefresh => 'Actualizar contenido';
 
   @override
