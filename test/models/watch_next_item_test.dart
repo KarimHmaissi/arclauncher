@@ -16,16 +16,16 @@ void main() {
   test('fromMap with the new fields', () {
     final item = WatchNextItem.fromMap({
       'id': 2,
-      'title': 'The Expanse',
+      'title': 'Distant Orbit',
       'duration': 2700000,
       'lastPlaybackPosition': 1380000,
-      'episodeTitle': 'Dulcinea',
+      'episodeTitle': 'Second Signal',
       'seasonNumber': '3',
       'episodeNumber': '7',
       'progressPercent': 51,
     });
     expect(item.lastPlaybackPosition, 1380000);
-    expect(item.episodeTitle, 'Dulcinea');
+    expect(item.episodeTitle, 'Second Signal');
     expect(item.seasonNumber, '3');
     expect(item.episodeNumber, '7');
     expect(item.progressPercent, 51);
