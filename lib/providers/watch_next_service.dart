@@ -40,13 +40,17 @@ class WatchNextService extends ChangeNotifier {
   final Set<String> _failedPosters = {};
   Timer? _refreshTimer;
   Timer? _posterNotifyDebounce;
+  bool _disposed = false;
   static const int _maxParallelPosterLoads = 2;
 
   List<WatchNextItem> get items => _items;
   bool get isLoading => _isLoading;
   bool get hasPermission => _hasPermission;
   bool get hasItems => _items.isNotEmpty;
-  bool get hasVisibleSection => !_isLoading && (!_hasPermission || _items.isNotEmpty);
+  /// Only the very first load hides the section: later refreshes keep the
+  /// current cards on screen, so the row (and the dock under it) never
+  /// collapses and jumps while Watch Next is re-read.
+  bool get hasVisibleSection => !(_isLoading && _allRawItems.isEmpty) && (!_hasPermission || _items.isNotEmpty);
   int get activeHeroIndex => _activeHeroIndex;
   WatchNextItem? get activeHeroItem =>
       _items.isNotEmpty && _activeHeroIndex < _items.length ? _items[_activeHeroIndex] : null;
@@ -124,6 +128,7 @@ class WatchNextService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _settingsService?.removeListener(_onSettingsChanged);
     _refreshTimer?.cancel();
     _posterNotifyDebounce?.cancel();
@@ -131,13 +136,14 @@ class WatchNextService extends ChangeNotifier {
   }
 
   Future<void> checkPermission() async {
+    final before = _hasPermission;
     try {
       _hasPermission = await _fLauncherChannel.checkWatchNextPermission();
     } catch (e) {
       debugPrint('WatchNext: Error checking permission: $e');
       _hasPermission = false;
     }
-    notifyListeners();
+    if (_hasPermission != before) notifyListeners();
   }
 
   Future<void> requestPermission() async {
@@ -178,22 +184,59 @@ class WatchNextService extends ChangeNotifier {
       }
     }
 
+    // Only the first load is visible as "loading"; a refresh keeps the
+    // current cards and says nothing until it knows something changed.
+    final firstLoad = _allRawItems.isEmpty;
     _isLoading = true;
-    notifyListeners();
+    if (firstLoad) notifyListeners();
 
+    var changed = false;
     try {
       final results = await _fLauncherChannel.getWatchNextItems();
-      _allRawItems = results.map((map) => WatchNextItem.fromMap(map)).toList();
-      _applyFilterAndNotify();
-      unawaited(_preloadInitialPosters());
+      final fresh = results.map((map) => WatchNextItem.fromMap(map)).toList();
+      if (!sameWatchNextContent(_allRawItems, fresh)) {
+        _allRawItems = fresh;
+        changed = true;
+      }
     } catch (e) {
-      debugPrint('WatchNext: Error loading items: $e');
-      _allRawItems = [];
-      _items = [];
+      // Keep the last good list: an error must not empty the row.
+      debugPrint('WatchNext: Error loading items, keeping the last list: $e');
     } finally {
       _isLoading = false;
+    }
+    if (changed) {
+      _applyFilterAndNotify();
+      unawaited(_preloadInitialPosters());
+    } else if (firstLoad) {
       notifyListeners();
     }
+  }
+
+  /// Whether two Watch Next reads would show the same row. Engagement times
+  /// are left out on purpose: they move on every publisher sync without the
+  /// row itself changing.
+  @visibleForTesting
+  static bool sameWatchNextContent(List<WatchNextItem> a, List<WatchNextItem> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = b[i];
+      if (x.id != y.id ||
+          x.contentId != y.contentId ||
+          x.title != y.title ||
+          x.description != y.description ||
+          x.posterUri != y.posterUri ||
+          x.backdropUri != y.backdropUri ||
+          x.packageName != y.packageName ||
+          x.progressPercent != y.progressPercent ||
+          x.duration != y.duration ||
+          x.intentUri != y.intentUri ||
+          x.watchNextType != y.watchNextType ||
+          x.aspectRatio != y.aspectRatio) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _applyFilterAndNotify() {
@@ -500,7 +543,11 @@ class WatchNextService extends ChangeNotifier {
     if (_posterNotifyDebounce?.isActive ?? false) {
       return;
     }
-    _posterNotifyDebounce = Timer(const Duration(milliseconds: 80), notifyListeners);
+    // A poster that finishes loading after dispose must not notify.
+    if (_disposed) return;
+    _posterNotifyDebounce = Timer(const Duration(milliseconds: 80), () {
+      if (!_disposed) notifyListeners();
+    });
   }
 
   Uint8List? getCachedPoster(String? uri) {

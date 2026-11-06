@@ -24,6 +24,7 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flauncher/actions.dart';
 import 'package:flauncher/custom_traversal_policy.dart';
+import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/settings_service.dart';
@@ -37,6 +38,7 @@ import 'package:flauncher/widgets/dock_contour_painter.dart';
 import 'package:flauncher/widgets/launcher_alternative_view.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flauncher/widgets/wallpaper_video_background.dart';
+import 'package:flauncher/widgets/watch_next_focus.dart';
 import 'package:flauncher/widgets/watch_next_row.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -66,15 +68,25 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   final GlobalKey _dockKey = GlobalKey();
   late final _HeroBackdropBaker _heroBackdropBaker = _HeroBackdropBaker();
 
+  /// Coming back to Arc after longer than this lands on Watch Next[0];
+  /// a quick hop out and back keeps focus where it was.
+  static const Duration _landOnWatchNextAfter = Duration(seconds: 30);
+  DateTime? _leftAt;
+  Timer? _resumeReread;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WatchNextFocusRequests.requests.addListener(_onLandOnWatchNext);
+    FLauncherChannel().setHomePressedHandler(_requestLandOnWatchNext);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    WatchNextFocusRequests.requests.removeListener(_onLandOnWatchNext);
+    _resumeReread?.cancel();
     _scrollController.dispose();
     _heroBackdropBaker.dispose();
     super.dispose();
@@ -83,8 +95,61 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      context.read<WatchNextService>().refreshPermissionAndItems();
+      final leftAt = _leftAt;
+      _leftAt = null;
+      final watchNext = context.read<WatchNextService>();
+      final refresh = watchNext.refreshPermissionAndItems();
+      // Plezy publishes the next episode just after an episode ends, which
+      // can land a moment after Arc is back in front: read once more (A6).
+      _resumeReread?.cancel();
+      _resumeReread = Timer(const Duration(seconds: 3), () {
+        if (mounted) watchNext.refreshItems();
+      });
+      if (leftAt != null && DateTime.now().difference(leftAt) > _landOnWatchNextAfter) {
+        // Land once the (first) items are in; a refresh with the same items
+        // keeps the cards, so this usually lands straight away.
+        refresh.whenComplete(_requestLandOnWatchNext);
+      }
+    } else if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused) {
+      _leftAt ??= DateTime.now();
     }
+  }
+
+  void _requestLandOnWatchNext() {
+    if (!mounted || !context.read<SettingsService>().startOnContinueWatching) return;
+    WatchNextFocusRequests.focusFirst();
+  }
+
+  /// Scrolls Home to the top; the Watch Next row (or hero) focuses its first
+  /// card. With no Watch Next cards, the dock's first app takes focus.
+  void _onLandOnWatchNext() {
+    if (!mounted) return;
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    final settings = context.read<SettingsService>();
+    final hasWatchNext = settings.showWatchNextSection && context.read<WatchNextService>().items.isNotEmpty;
+    if (!hasWatchNext) _focusFirstDockApp();
+  }
+
+  void _focusFirstDockApp() {
+    final dockContext = _dockKey.currentContext;
+    if (dockContext == null) return;
+    FocusNode? found;
+    void visit(Element element) {
+      if (found != null) return;
+      if (element.widget is Focus) {
+        Element? child;
+        element.visitChildren((c) => child ??= c);
+        final node = child == null ? null : Focus.maybeOf(child!, scopeOk: false);
+        if (node != null && node.canRequestFocus && !node.skipTraversal) {
+          found = node;
+          return;
+        }
+      }
+      element.visitChildren(visit);
+    }
+
+    (dockContext as Element).visitChildren(visit);
+    found?.requestFocus();
   }
 
   @override

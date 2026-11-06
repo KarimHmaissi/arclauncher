@@ -17,6 +17,7 @@
  */
 
 import 'package:flauncher/models/watch_next_item.dart';
+import 'package:flauncher/widgets/watch_next_focus.dart';
 import 'package:flauncher/actions.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
@@ -89,7 +90,8 @@ class WatchNextRow extends StatelessWidget {
           );
         }
 
-        if (data.isLoading) {
+        // Hide only during the first load; refreshes keep the cards.
+        if (data.isLoading && data.items.isEmpty) {
           return const SizedBox.shrink();
         }
 
@@ -233,52 +235,45 @@ class _WatchNextCleanRow extends StatefulWidget {
 
 class _WatchNextCleanRowState extends State<_WatchNextCleanRow> {
   final ScrollController _scrollController = ScrollController();
-  final List<FocusNode> _focusNodes = [];
+  final WatchNextFocusNodes _focusNodes = WatchNextFocusNodes();
   double? _lastScrollTarget;
 
   @override
   void initState() {
     super.initState();
-    _createFocusNodes();
+    WatchNextFocusRequests.requests.addListener(_focusFirst);
   }
 
   @override
   void didUpdateWidget(covariant _WatchNextCleanRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.items.length != widget.items.length) {
-      _disposeFocusNodes();
-      _createFocusNodes();
-    }
-  }
-
-  void _createFocusNodes() {
-    _focusNodes.clear();
-    for (int i = 0; i < widget.items.length; i++) {
-      _focusNodes.add(FocusNode());
-    }
-  }
-
-  void _disposeFocusNodes() {
-    for (var node in _focusNodes) {
-      node.dispose();
-    }
-    _focusNodes.clear();
+    // Nodes follow each item's identity, so a reorder of the same items
+    // keeps focus on the same card instead of the same slot.
+    _focusNodes.retainOnly(widget.items);
   }
 
   @override
   void dispose() {
+    WatchNextFocusRequests.requests.removeListener(_focusFirst);
     _scrollController.dispose();
-    _disposeFocusNodes();
+    _focusNodes.dispose();
     super.dispose();
+  }
+
+  void _focusFirst() {
+    if (!mounted || widget.items.isEmpty) return;
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    _lastScrollTarget = null;
+    _focusNodes.nodeFor(widget.items.first).requestFocus();
   }
 
   KeyEventResult _handleNavigationKey(int index, LogicalKeyboardKey key) {
     if (key == LogicalKeyboardKey.arrowRight && index < widget.items.length - 1) {
-      _focusNodes[index + 1].requestFocus();
+      _focusNodes.nodeFor(widget.items[index + 1]).requestFocus();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft && index > 0) {
-      _focusNodes[index - 1].requestFocus();
+      _focusNodes.nodeFor(widget.items[index - 1]).requestFocus();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -337,7 +332,7 @@ class _WatchNextCleanRowState extends State<_WatchNextCleanRow> {
           final item = widget.items[index];
           return _WatchNextCard(
             item: item,
-            focusNode: _focusNodes[index],
+            focusNode: _focusNodes.nodeFor(item),
             autofocus: widget.isFirstSection && index == 0,
             onFocusChanged: (focused) => _onFocusChanged(index, focused),
             onNavigationKey: (key) => _handleNavigationKey(index, key),
@@ -501,7 +496,8 @@ class _WatchNextCardState extends State<_WatchNextCard> {
                           bottom: 0,
                           child: _buildCardLabels(showDescription: _isHovered),
                         ),
-                        if (_isHovered) _buildProgressIndicator(),
+                        // Progress shows on every card, not just the focused one.
+                        _buildProgressIndicator(),
                         if (_isHovered && showFocusBorders)
                           IgnorePointer(
                             child: CustomPaint(
@@ -533,9 +529,10 @@ class _WatchNextCardState extends State<_WatchNextCard> {
         fit: BoxFit.cover,
         width: _kWatchNextItemWidth,
         height: _kWatchNextItemHeight,
-        cacheWidth: _kWatchNextItemWidth.toInt(),
-        cacheHeight: _kWatchNextItemHeight.toInt(),
-        filterQuality: FilterQuality.low,
+        // Decode at the card's real pixel size (4K output is 2x), keeping
+        // the aspect ratio, so posters aren't upscaled from half size.
+        cacheWidth: (_kWatchNextItemWidth * MediaQuery.devicePixelRatioOf(context)).round(),
+        filterQuality: FilterQuality.medium,
       );
     }
 
@@ -623,7 +620,11 @@ class _WatchNextCardState extends State<_WatchNextCard> {
           ),
           const SizedBox(height: 2),
           Text(
-            localizations.watchNextSectionTitle,
+            widget.item.subtitle(
+                  newLabel: localizations.watchNextNew,
+                  minutesLeftLabel: localizations.watchNextMinutesLeft,
+                ) ??
+                localizations.watchNextSectionTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -650,7 +651,7 @@ class _WatchNextCardState extends State<_WatchNextCard> {
   }
 
   Widget _buildProgressIndicator() {
-    if (widget.item.progressPercent == null || widget.item.progressPercent == 0) {
+    if (widget.item.progressPercent == null || widget.item.progressPercent! <= 0) {
       return const SizedBox.shrink();
     }
 
