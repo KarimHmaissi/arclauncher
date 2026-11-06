@@ -24,6 +24,7 @@ import 'package:flauncher/models/watch_next_item.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
+import 'package:flauncher/widgets/watch_next_focus.dart';
 import 'package:flauncher/widgets/app_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -247,10 +248,18 @@ class _HeroWatchButtonState extends State<_HeroWatchButton> {
   void initState() {
     super.initState();
     _isHovered = widget.autofocus;
+    WatchNextFocusRequests.requests.addListener(_focusFirst);
+  }
+
+  void _focusFirst() {
+    if (!mounted) return;
+    context.read<WatchNextService>().setActiveHeroIndex(0);
+    _focusNode.requestFocus();
   }
 
   @override
   void dispose() {
+    WatchNextFocusRequests.requests.removeListener(_focusFirst);
     _launchTimer?.cancel();
     _resetTimer?.cancel();
     _focusNode.dispose();

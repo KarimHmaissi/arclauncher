@@ -149,6 +149,14 @@ class FLauncherChannel {
   Future<void> requestInstallUnknownAppsPermission() async =>
       await _methodChannel.invokeMethod("requestInstallUnknownAppsPermission");
 
+  /// Called when Home is pressed while Arc is already in front.
+  void setHomePressedHandler(void Function() onHomePressed) {
+    _methodChannel.setMethodCallHandler((call) async {
+      if (call.method == 'homePressed') onHomePressed();
+      return null;
+    });
+  }
+
   void addAppsChangedListener(void Function(Map<String, dynamic>) listener) =>
       _appsEventChannel.receiveBroadcastStream().listen((event) {
         Map<dynamic, dynamic> eventMap = event;
