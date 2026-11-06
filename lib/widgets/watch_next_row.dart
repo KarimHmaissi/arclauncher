@@ -502,7 +502,8 @@ class _WatchNextCardState extends State<_WatchNextCard> {
                           bottom: 0,
                           child: _buildCardLabels(showDescription: _isHovered),
                         ),
-                        if (_isHovered) _buildProgressIndicator(),
+                        // Progress shows on every card, not just the focused one.
+                        _buildProgressIndicator(),
                         if (_isHovered && showFocusBorders)
                           IgnorePointer(
                             child: CustomPaint(
@@ -534,9 +535,10 @@ class _WatchNextCardState extends State<_WatchNextCard> {
         fit: BoxFit.cover,
         width: _kWatchNextItemWidth,
         height: _kWatchNextItemHeight,
-        cacheWidth: _kWatchNextItemWidth.toInt(),
-        cacheHeight: _kWatchNextItemHeight.toInt(),
-        filterQuality: FilterQuality.low,
+        // Decode at the card's real pixel size (4K output is 2x), keeping
+        // the aspect ratio, so posters aren't upscaled from half size.
+        cacheWidth: (_kWatchNextItemWidth * MediaQuery.devicePixelRatioOf(context)).round(),
+        filterQuality: FilterQuality.medium,
       );
     }
 
@@ -624,7 +626,11 @@ class _WatchNextCardState extends State<_WatchNextCard> {
           ),
           const SizedBox(height: 2),
           Text(
-            localizations.watchNextSectionTitle,
+            widget.item.subtitle(
+                  newLabel: localizations.watchNextNew,
+                  minutesLeftLabel: localizations.watchNextMinutesLeft,
+                ) ??
+                localizations.watchNextSectionTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -651,7 +657,7 @@ class _WatchNextCardState extends State<_WatchNextCard> {
   }
 
   Widget _buildProgressIndicator() {
-    if (widget.item.progressPercent == null || widget.item.progressPercent == 0) {
+    if (widget.item.progressPercent == null || widget.item.progressPercent! <= 0) {
       return const SizedBox.shrink();
     }
 
