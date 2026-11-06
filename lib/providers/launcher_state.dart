@@ -24,6 +24,7 @@ import 'package:provider/provider.dart';
 
 import '../widgets/settings/back_button_actions.dart';
 import 'apps_service.dart';
+import '../widgets/watch_next_focus.dart';
 
 class LauncherState extends ChangeNotifier
 {
@@ -65,6 +66,11 @@ class LauncherState extends ChangeNotifier
       String action = settingsService.backButtonAction;
 
       switch (action) {
+        case BACK_BUTTON_ACTION_NOTHING:
+          // Back at the root with the default action lands on tonight's
+          // episode, like Home does.
+          if (settingsService.startOnContinueWatching) WatchNextFocusRequests.focusFirst();
+          break;
         case BACK_BUTTON_ACTION_CLOCK:
           launcherState.toggleLauncherVisibility();
           break;

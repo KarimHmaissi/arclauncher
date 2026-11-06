@@ -145,6 +145,17 @@ class _WatchNextPanelPageState extends State<WatchNextPanelPage> {
                   ),
 
                 RoundedSwitchListTile(
+                  value: settingsService.startOnContinueWatching,
+                  onChanged: settingsService.setStartOnContinueWatching,
+                  title: Text(localizations.watchNextStartOnContinueWatching, style: Theme.of(context).textTheme.bodyMedium),
+                  subtitle: Text(
+                    localizations.watchNextStartOnContinueWatchingDescription,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  secondary: const Icon(Icons.play_circle_outline),
+                ),
+
+                RoundedSwitchListTile(
                   value: settingsService.watchNextBigPictureMode,
                   onChanged: settingsService.setWatchNextBigPictureMode,
                   title: Text(localizations.watchNextBigPictureMode, style: Theme.of(context).textTheme.bodyMedium),

@@ -211,6 +211,8 @@
     "watchNextBigPictureModeDescription": "Show full-width hero backdrop with an action watch button",
     "watchNextWatch": "Watch",
     "watchNextResume": "Resume",
+    "watchNextStartOnContinueWatching": "Start on Continue Watching",
+    "watchNextStartOnContinueWatchingDescription": "Home, Back and coming back to Arc land on your first Watch Next card",
     "watchNextNew": "New",
     "@watchNextNew": {
       "description": "Watch Next card: an episode that hasn't been started"

@@ -79,6 +79,33 @@ public class MainActivity extends FlutterActivity {
     private static final String PERMISSION_READ_TV_LISTINGS = "android.permission.READ_TV_LISTINGS";
     private static final int REQUEST_CODE_READ_TV_LISTINGS = 1001;
     private static final String COLUMN_ASPECT_RATIO = "aspect_ratio";
+    private MethodChannel methodChannel;
+    // Started (visible) rather than resumed: Android always pauses an activity
+    // before onNewIntent, so "resumed" is never true there. Arc stays started
+    // when Home is pressed while it is in front, and is stopped when Home
+    // brings it back from another app.
+    private boolean started = false;
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        started = true;
+    }
+
+    @Override
+    protected void onStop() {
+        started = false;
+        super.onStop();
+    }
+
+    /** Home pressed while Arc is already in front: tell Dart, which lands on Watch Next[0]. */
+    @Override
+    protected void onNewIntent(@NonNull Intent intent) {
+        super.onNewIntent(intent);
+        if (started && intent.hasCategory(Intent.CATEGORY_HOME) && methodChannel != null) {
+            methodChannel.invokeMethod("homePressed", null);
+        }
+    }
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
@@ -86,7 +113,8 @@ public class MainActivity extends FlutterActivity {
 
         BinaryMessenger messenger = flutterEngine.getDartExecutor().getBinaryMessenger();
 
-        new MethodChannel(messenger, METHOD_CHANNEL).setMethodCallHandler((call, result) -> {
+        methodChannel = new MethodChannel(messenger, METHOD_CHANNEL);
+        methodChannel.setMethodCallHandler((call, result) -> {
             switch (call.method) {
                 case "getApplications" -> result.success(getApplications());
                 case "getApplicationBanner" -> result.success(getApplicationBanner(call.arguments()));
