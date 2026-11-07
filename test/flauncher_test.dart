@@ -124,6 +124,58 @@ void main() {
     expect(find.text('Place · © Photographer'), findsOneWidget);
   });
 
+  group("wallpaper on return to Home", () {
+    late _ListenableWallpaperService wallpaperService;
+    late int revision;
+
+    Future<void> pumpHome(WidgetTester tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn([]);
+      wallpaperService = _ListenableWallpaperService();
+      stubWallpaperService(wallpaperService);
+      revision = 1;
+      when(wallpaperService.wallpaperRevision).thenAnswer((_) => revision);
+      await _pumpWidgetWithProviders(tester, wallpaperService, appsService, mkSettingsService());
+      expect(find.byKey(const ValueKey("background_1")), findsOneWidget);
+    }
+
+    void changeWallpaper() {
+      revision++;
+      wallpaperService.notify();
+    }
+
+    Future<void> setLifecycle(WidgetTester tester, List<AppLifecycleState> states) async {
+      for (final state in states) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+    }
+
+    testWidgets("a wallpaper that changed while Arc was hidden shows at once", (tester) async {
+      await pumpHome(tester);
+
+      await setLifecycle(tester, [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused]);
+      changeWallpaper();
+      await setLifecycle(tester, [AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey("background_2")), findsOneWidget);
+      expect(find.byKey(const ValueKey("background_1")), findsNothing);
+      await tester.pump(const Duration(seconds: 4)); // Let the resume re-read timer finish.
+    });
+
+    testWidgets("a wallpaper change while Arc is on screen still crossfades", (tester) async {
+      await pumpHome(tester);
+
+      changeWallpaper();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byKey(const ValueKey("background_2")), findsOneWidget);
+      expect(find.byKey(const ValueKey("background_1")), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.byKey(const ValueKey("background_1")), findsNothing);
+    });
+  });
+
   testWidgets("Pressing select on settings icon opens SettingsPanel", (tester) async {
     final appsService = mkAppService();
     when(appsService.categoriesWithApps).thenReturn([
@@ -518,8 +570,23 @@ WatchNextService mkWatchNextService() {
   return watchNextService;
 }
 
-WallpaperService mkWallpaperService([bool wallpaper = true]) {
-  final wallpaperService = MockWallpaperService();
+WallpaperService mkWallpaperService([bool wallpaper = true]) => stubWallpaperService(MockWallpaperService(), wallpaper);
+
+/// A mock wallpaper service whose listeners really are notified.
+class _ListenableWallpaperService extends MockWallpaperService {
+  final ChangeNotifier _notifier = ChangeNotifier();
+
+  @override
+  void addListener(VoidCallback? listener) => _notifier.addListener(listener!);
+
+  @override
+  void removeListener(VoidCallback? listener) => _notifier.removeListener(listener!);
+
+  // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+  void notify() => _notifier.notifyListeners();
+}
+
+T stubWallpaperService<T extends MockWallpaperService>(T wallpaperService, [bool wallpaper = true]) {
   when(wallpaperService.gradient).thenReturn(FLauncherGradients.greatWhale);
   when(wallpaperService.wallpaper).thenReturn(wallpaper ? Image.asset('assets/icon.png').image : null);
   when(wallpaperService.wallpaperVideoFile).thenReturn(null);

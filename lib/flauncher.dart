@@ -75,6 +75,14 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   DateTime? _leftAt;
   Timer? _resumeReread;
 
+  /// Wallpaper revision when Arc left the screen, to tell on return whether the
+  /// wallpaper changed meanwhile (the 4K photos keep changing under a screensaver).
+  int? _wallpaperRevisionWhenLeft;
+
+  /// Bumped to rebuild the wallpaper crossfade from scratch, which shows the
+  /// current wallpaper at once with no outgoing one fading out.
+  int _wallpaperSwitcherGeneration = 0;
+
   @override
   void initState() {
     super.initState();
@@ -96,6 +104,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _showChangedWallpaperInstantly();
       final leftAt = _leftAt;
       _leftAt = null;
       final watchNext = context.read<WatchNextService>();
@@ -113,6 +122,18 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
       }
     } else if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused) {
       _leftAt ??= DateTime.now();
+      _wallpaperRevisionWhenLeft ??= context.read<WallpaperService>().wallpaperRevision;
+    }
+  }
+
+  /// Home must be back at once after a screensaver or app: a wallpaper that
+  /// changed meanwhile is shown straight away instead of replaying the 1.5 s
+  /// crossfade on return.
+  void _showChangedWallpaperInstantly() {
+    final revisionWhenLeft = _wallpaperRevisionWhenLeft;
+    _wallpaperRevisionWhenLeft = null;
+    if (revisionWhenLeft != null && context.read<WallpaperService>().wallpaperRevision != revisionWhenLeft) {
+      setState(() => _wallpaperSwitcherGeneration++);
     }
   }
 
@@ -185,6 +206,8 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                   children: [
                     // Crossfade between wallpapers (each one has a revision-based key).
                     AnimatedSwitcher(
+                      // A new switcher starts on its child with no transition.
+                      key: ValueKey(_wallpaperSwitcherGeneration),
                       duration: const Duration(milliseconds: 1500),
                       child: hasHeroBackdrop
                           ? const SizedBox.shrink(key: ValueKey('occluded_wallpaper'))
