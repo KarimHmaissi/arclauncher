@@ -1,0 +1,13 @@
+{
+ "batchrsp": {
+  "ver": "1.0",
+  "items": [
+   {
+    "item": "{\"ad\": {\"landscapeImage\": {\"asset\": \"https://res.public.onecdn.static.microsoft/creativeservice/0f8ecccd-594b-6f7f-9cbd-cca18651fbf6_desktop-b019_ds_binalongbaytasmania_gettyimages-1348136289_3840x2160.jpg\"}, \"title\": \"Blazing boulders\", \"copyright\": \"\\u00a9 zetter / iStock / Getty Images Plus\", \"iconHoverText\": \"Bay of Fires, Tasmania\\r\\n\\u00a9 zetter / iStock / Getty Images Plus\\r\\nRight-click to learn more\", \"entityId\": \"128000000005496409\"}}"
+   },
+   {
+    "item": "{\"ad\": {\"landscapeImage\": {\"asset\": \"https://res.public.onecdn.static.microsoft/creativeservice/d117a737-871a-2c8f-0591-ecc978383fcc_desktop-b020_ds_blackduckhatteras_gettyimages-2204925709_3840x2160.jpg\"}, \"title\": \"Quack in black\", \"copyright\": \"\\u00a9 jared lloyd / Moment / Getty Images\", \"iconHoverText\": \"American black duck near Hatteras Island, North Carolina\\r\\n\\u00a9 jared lloyd / Moment / Getty Images\\r\\nRight-click to learn more\", \"entityId\": \"128000000005545029\"}}"
+   }
+  ]
+ }
+}

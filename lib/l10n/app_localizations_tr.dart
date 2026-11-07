@@ -523,87 +523,66 @@ class AppLocalizationsTr extends AppLocalizations {
   String get watchNextMaxItemsUnlimited => 'Sınırsız';
 
   @override
-  String get redditWallpaper => 'Reddit duvar kağıdı';
+  String get photoWallpaper => '4K fotoğraflar';
 
   @override
-  String get redditWallpaperEnable => 'Reddit fotoğraflarını göster';
+  String get photoWallpaperEnable => '4K fotoğrafları göster';
 
   @override
-  String get redditSubreddits => 'Subreddit\'ler';
+  String get photoWallpaperSource => 'Kaynak';
 
   @override
-  String get redditSort => 'Sırala';
+  String get photoWallpaperSourceSpotlight => 'Çeşitli fotoğraflar';
 
   @override
-  String get redditSortHot => 'Popüler';
+  String get photoWallpaperSourceBing => 'Günün fotoğrafı';
 
   @override
-  String get redditSortTopDay => 'En İyiler (Bugün)';
+  String get photoWallpaperShowCredit => 'Fotoğraf bilgisini göster';
 
   @override
-  String get redditSortTopWeek => 'En İyiler (Bu Hafta)';
+  String get photoWallpaperChangeNow => 'Fotoğrafı şimdi değiştir';
 
   @override
-  String get redditSortTopMonth => 'En İyiler (Bu Ay)';
+  String get photoWallpaperUpdated => 'Fotoğraf değiştirildi';
 
   @override
-  String get redditSortTopAll => 'En İyiler (Tüm Zamanlar)';
+  String get photoWallpaperFailed =>
+      'Yeni fotoğraf alınamadı. Bağlantınızı kontrol edin.';
 
   @override
-  String get redditSortNew => 'Yeni';
+  String get photoScreensaverClock => 'Ekran koruyucuda saat';
 
   @override
-  String get redditInterval => 'Değiştirme sıklığı';
+  String get photoScreensaverUse => 'Ekran koruyucu olarak kullan';
 
   @override
-  String redditIntervalMinutes(int minutes) {
+  String get photoScreensaverHint =>
+      'Ekran koruyucu listesinden \"Arc Photos\"u seçin';
+
+  @override
+  String get wallpaperInterval => 'Değiştirme sıklığı';
+
+  @override
+  String wallpaperIntervalMinutes(int minutes) {
     return '$minutes dk';
   }
 
   @override
-  String get redditInterval1Hour => '1 saat';
+  String get wallpaperInterval1Hour => '1 saat';
 
   @override
-  String redditIntervalHours(int hours) {
+  String wallpaperIntervalHours(int hours) {
     return '$hours saat';
   }
 
   @override
-  String get redditInterval1Day => '1 gün';
+  String get wallpaperInterval1Day => '1 gün';
 
   @override
-  String redditIntervalDays(int days) {
+  String wallpaperIntervalDays(int days) {
     return '$days gün';
   }
-
-  @override
-  String get redditClientId => 'Reddit İstemci Kimliği (İsteğe bağlı)';
-
-  @override
-  String get redditClientIdHelp =>
-      'İsteğe bağlı. reddit.com/prefs/apps adresinden yüklü uygulama oluşturup kimliğini yapıştırın.';
-
-  @override
-  String get redditChangeNow => 'Duvar kağıdını şimdi değiştir';
-
-  @override
-  String get redditAddSubreddit => 'Özel subreddit ekle';
-
-  @override
-  String get redditSubredditName => 'Subreddit adı (r/ olmadan)';
-
-  @override
-  String get redditSubredditAdded => 'Subreddit eklendi';
-
-  @override
-  String get redditSubredditInvalid => 'Lütfen geçerli bir subreddit adı girin';
-
-  @override
-  String get redditWallpaperUpdated => 'Duvar kağıdı başarıyla güncellendi';
-
-  @override
-  String get redditWallpaperFailed =>
-      'Duvar kağıdı alınamadı. Sorun devam ederse ayarlardan bir Reddit İstemci Kimliği girin.';
 
   @override
   String get addToFavorites => 'Add to Fav';

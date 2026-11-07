@@ -17,8 +17,9 @@
  */
 
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:flauncher/providers/reddit_slideshow.dart';
+import 'package:flauncher/providers/photo_wallpaper_source.dart';
 import 'package:flauncher/providers/unsplash_slideshow.dart';
 import 'package:flauncher/widgets/settings/back_button_actions.dart';
 import 'package:flutter/material.dart';
@@ -50,6 +51,15 @@ const String _startOnContinueWatching = "start_on_continue_watching";
 const String _watchNextHideProgramsWithoutImages = "watch_next_hide_programs_without_images";
 const String _watchNextMaxItems = "watch_next_max_items";
 const String _watchNextExcludedPackages = "watch_next_excluded_packages";
+const String _photoWallpaperEnabled = "photo_wallpaper_enabled";
+const String _photoWallpaperSource = "photo_wallpaper_source";
+const String _photoWallpaperIntervalMinutes = "photo_wallpaper_interval_minutes";
+const String _photoWallpaperShowCredit = "photo_wallpaper_show_credit";
+const String _photoWallpaperCredits = "photo_wallpaper_credits";
+const String _photoWallpaperSeen = "photo_wallpaper_seen";
+const String _photoScreensaverClock = "photo_screensaver_clock";
+const String _photoWallpaperCurrent = "photo_wallpaper_current";
+const String _photoWallpaperCurrentSince = "photo_wallpaper_current_since";
 
 const List<int> WATCH_NEXT_MAX_ITEMS_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 50];
 const String _dockDarkBackground = "dock_dark_background";
@@ -362,7 +372,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> setUnsplashSlideshowEnabled(bool enabled) async {
     await _sharedPreferences.setBool("unsplash_slideshow_enabled", enabled);
     if (enabled) {
-      await _sharedPreferences.setBool("reddit_wallpaper_enabled", false);
+      await _sharedPreferences.setBool(_photoWallpaperEnabled, false);
     }
     notifyListeners();
   }
@@ -372,67 +382,129 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setUnsplashAuthor(String author) => _sharedPreferences.setString("unsplash_author", author);
 
-  // Reddit Wallpaper Settings
+  // 4K photos (Windows Spotlight / Bing)
 
-  bool get redditWallpaperEnabled => _sharedPreferences.getBool("reddit_wallpaper_enabled") ?? false;
+  static const List<int> photoWallpaperIntervalChoices = [10, 30, 60, 360, 720, 1440];
 
-  Future<void> setRedditWallpaperEnabled(bool enabled) async {
-    await _sharedPreferences.setBool("reddit_wallpaper_enabled", enabled);
+  /// How many downloaded photo ids are remembered.
+  static const int photoWallpaperSeenMax = 200;
+
+  bool get photoWallpaperEnabled => _sharedPreferences.getBool(_photoWallpaperEnabled) ?? false;
+
+  Future<void> setPhotoWallpaperEnabled(bool enabled) async {
+    await _sharedPreferences.setBool(_photoWallpaperEnabled, enabled);
     if (enabled) {
       await _sharedPreferences.setBool("unsplash_slideshow_enabled", false);
     }
     notifyListeners();
   }
 
-  static const List<int> redditIntervalChoices = [5, 10, 30, 60, 360, 720, 1440];
+  PhotoSource get photoWallpaperSource => PhotoSource.fromKey(_sharedPreferences.getString(_photoWallpaperSource));
 
-  int get redditIntervalMinutes => _sharedPreferences.getInt("reddit_interval_minutes") ?? 10;
-
-  Future<void> setRedditIntervalMinutes(int minutes) async {
-    await _sharedPreferences.setInt("reddit_interval_minutes", minutes);
+  Future<void> setPhotoWallpaperSource(PhotoSource source) async {
+    await _sharedPreferences.setString(_photoWallpaperSource, source.key);
     notifyListeners();
   }
 
-  List<String> get redditSubreddits => _sharedPreferences.getStringList("reddit_subreddits") ?? defaultRedditSubreddits;
+  int get photoWallpaperIntervalMinutes => _sharedPreferences.getInt(_photoWallpaperIntervalMinutes) ?? 60;
 
-  Future<void> setRedditSubreddits(List<String> subreddits) async {
-    await _sharedPreferences.setStringList("reddit_subreddits", subreddits);
+  Future<void> setPhotoWallpaperIntervalMinutes(int minutes) async {
+    await _sharedPreferences.setInt(_photoWallpaperIntervalMinutes, minutes);
     notifyListeners();
   }
 
-  String get redditSort => _sharedPreferences.getString("reddit_sort") ?? RedditSort.hot.key;
+  bool get photoWallpaperShowCredit => _sharedPreferences.getBool(_photoWallpaperShowCredit) ?? true;
 
-  Future<void> setRedditSort(String sort) async {
-    await _sharedPreferences.setString("reddit_sort", sort);
+  Future<void> setPhotoWallpaperShowCredit(bool show) async {
+    await _sharedPreferences.setBool(_photoWallpaperShowCredit, show);
     notifyListeners();
   }
 
-  String get redditClientId => _sharedPreferences.getString("reddit_client_id") ?? "";
+  /// Credits of the cached photos by file stem. Stored as one JSON object so
+  /// the Android screensaver can read it too.
+  Map<String, PhotoCredit> get photoWallpaperCredits {
+    try {
+      final json = jsonDecode(_sharedPreferences.getString(_photoWallpaperCredits) ?? "{}");
+      if (json is! Map) return {};
+      final credits = <String, PhotoCredit>{};
+      json.forEach((id, value) {
+        if (id is String && value is Map && value['title'] is String && value['copyright'] is String) {
+          credits[id] = PhotoCredit(value['title'] as String, value['copyright'] as String);
+        }
+      });
+      return credits;
+    } catch (_) {
+      return {};
+    }
+  }
 
-  Future<void> setRedditClientId(String clientId) async {
-    await _sharedPreferences.setString("reddit_client_id", clientId.trim());
+  Future<void> setPhotoWallpaperCredits(Map<String, PhotoCredit> credits) => _sharedPreferences.setString(
+    _photoWallpaperCredits,
+    jsonEncode(credits.map((id, credit) => MapEntry(id, credit.toJson()))),
+  );
+
+  /// Ids of photos downloaded before, oldest first, so a photo that left the
+  /// pool isn't downloaded again soon.
+  List<String> get photoWallpaperSeen => _sharedPreferences.getStringList(_photoWallpaperSeen) ?? const [];
+
+  Future<void> addPhotoWallpaperSeen(Iterable<String> ids) async {
+    final added = ids.toSet();
+    if (added.isEmpty) return;
+    final seen = [...photoWallpaperSeen.where((s) => !added.contains(s)), ...added];
+    final start = seen.length > photoWallpaperSeenMax ? seen.length - photoWallpaperSeenMax : 0;
+    await _sharedPreferences.setStringList(_photoWallpaperSeen, seen.sublist(start));
+  }
+
+  /// Id of the 4K photo on the home screen, so a restart shows the same one.
+  String? get photoWallpaperCurrent => _sharedPreferences.getString(_photoWallpaperCurrent);
+
+  /// When [photoWallpaperCurrent] went on screen, or null if unknown.
+  DateTime? get photoWallpaperCurrentSince {
+    final ms = _sharedPreferences.getInt(_photoWallpaperCurrentSince);
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  Future<void> setPhotoWallpaperCurrent(String id, DateTime since) async {
+    await _sharedPreferences.setString(_photoWallpaperCurrent, id);
+    await _sharedPreferences.setInt(_photoWallpaperCurrentSince, since.millisecondsSinceEpoch);
+  }
+
+  /// Whether the Arc Photos screensaver shows the clock (read by the Android side).
+  bool get photoScreensaverClock => _sharedPreferences.getBool(_photoScreensaverClock) ?? true;
+
+  Future<void> setPhotoScreensaverClock(bool show) async {
+    await _sharedPreferences.setBool(_photoScreensaverClock, show);
     notifyListeners();
   }
 
-  String get redditClientSecret => _sharedPreferences.getString("reddit_client_secret") ?? "";
+  /// Prefs of the Reddit wallpaper, which was removed when Reddit started
+  /// refusing unauthenticated requests.
+  static const List<String> legacyRedditKeys = [
+    'reddit_wallpaper_enabled',
+    'reddit_interval_minutes',
+    'reddit_subreddits',
+    'reddit_sort',
+    'reddit_client_id',
+    'reddit_client_secret',
+    'reddit_current_title',
+    'reddit_current_author',
+    'reddit_current_subreddit',
+  ];
 
-  Future<void> setRedditClientSecret(String secret) async {
-    await _sharedPreferences.setString("reddit_client_secret", secret.trim());
-    notifyListeners();
-  }
-
-  String? get redditCurrentTitle => _sharedPreferences.getString("reddit_current_title");
-  String? get redditCurrentAuthor => _sharedPreferences.getString("reddit_current_author");
-  String? get redditCurrentSubreddit => _sharedPreferences.getString("reddit_current_subreddit");
-
-  Future<void> setRedditWallpaperInfo({
-    required String title,
-    required String author,
-    required String subreddit,
-  }) async {
-    await _sharedPreferences.setString("reddit_current_title", title);
-    await _sharedPreferences.setString("reddit_current_author", author);
-    await _sharedPreferences.setString("reddit_current_subreddit", subreddit);
-    notifyListeners();
+  /// One-time migration: a Reddit wallpaper that was on becomes 4K photos, and
+  /// the Reddit prefs are removed.
+  static Future<void> migrateLegacyPrefs(SharedPreferences prefs) async {
+    if (!legacyRedditKeys.any(prefs.containsKey)) return;
+    if (prefs.getBool('reddit_wallpaper_enabled') == true && !prefs.containsKey(_photoWallpaperEnabled)) {
+      await prefs.setBool(_photoWallpaperEnabled, true);
+      await prefs.setBool('unsplash_slideshow_enabled', false);
+      final interval = prefs.getInt('reddit_interval_minutes');
+      if (interval != null && photoWallpaperIntervalChoices.contains(interval)) {
+        await prefs.setInt(_photoWallpaperIntervalMinutes, interval);
+      }
+    }
+    for (final key in legacyRedditKeys) {
+      await prefs.remove(key);
+    }
   }
 }

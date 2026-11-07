@@ -81,6 +81,15 @@ class FLauncherChannel {
 
   Future<bool> isDefaultLauncher() async => await _methodChannel.invokeMethod('isDefaultLauncher');
 
+  /// Whether the Arc Photos screensaver is chosen or has run lately; false if unknown.
+  Future<bool> isPhotoScreensaverInUse() async {
+    try {
+      return await _methodChannel.invokeMethod<bool>('isPhotoScreensaverInUse') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> checkForGetContentAvailability() async =>
       await _methodChannel.invokeMethod("checkForGetContentAvailability");
 

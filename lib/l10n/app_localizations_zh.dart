@@ -510,86 +510,64 @@ class AppLocalizationsZh extends AppLocalizations {
   String get watchNextMaxItemsUnlimited => '不限';
 
   @override
-  String get redditWallpaper => 'Reddit 壁纸';
+  String get photoWallpaper => '4K 照片';
 
   @override
-  String get redditWallpaperEnable => '显示 Reddit 壁纸';
+  String get photoWallpaperEnable => '显示 4K 照片';
 
   @override
-  String get redditSubreddits => '子版块';
+  String get photoWallpaperSource => '来源';
 
   @override
-  String get redditSort => '排序方式';
+  String get photoWallpaperSourceSpotlight => '多样照片';
 
   @override
-  String get redditSortHot => '热门';
+  String get photoWallpaperSourceBing => '每日一图';
 
   @override
-  String get redditSortTopDay => '今日最佳';
+  String get photoWallpaperShowCredit => '显示图片署名';
 
   @override
-  String get redditSortTopWeek => '本周最佳';
+  String get photoWallpaperChangeNow => '立即更换照片';
 
   @override
-  String get redditSortTopMonth => '本月最佳';
+  String get photoWallpaperUpdated => '照片已更换';
 
   @override
-  String get redditSortTopAll => '历史最佳';
+  String get photoWallpaperFailed => '无法获取新照片，请检查网络连接。';
 
   @override
-  String get redditSortNew => '最新';
+  String get photoScreensaverClock => '屏保显示时钟';
 
   @override
-  String get redditInterval => '更换间隔';
+  String get photoScreensaverUse => '用作屏保';
 
   @override
-  String redditIntervalMinutes(int minutes) {
+  String get photoScreensaverHint => '在屏保列表中选择\"Arc Photos\"';
+
+  @override
+  String get wallpaperInterval => '更换间隔';
+
+  @override
+  String wallpaperIntervalMinutes(int minutes) {
     return '$minutes 分钟';
   }
 
   @override
-  String get redditInterval1Hour => '1 小时';
+  String get wallpaperInterval1Hour => '1 小时';
 
   @override
-  String redditIntervalHours(int hours) {
+  String wallpaperIntervalHours(int hours) {
     return '$hours 小时';
   }
 
   @override
-  String get redditInterval1Day => '1 天';
+  String get wallpaperInterval1Day => '1 天';
 
   @override
-  String redditIntervalDays(int days) {
+  String wallpaperIntervalDays(int days) {
     return '$days 天';
   }
-
-  @override
-  String get redditClientId => 'Reddit Client ID（可选）';
-
-  @override
-  String get redditClientIdHelp =>
-      '可选。在 reddit.com/prefs/apps 创建已安装应用，如果您的网络需要，请粘贴其 ID。';
-
-  @override
-  String get redditChangeNow => '立即更换壁纸';
-
-  @override
-  String get redditAddSubreddit => '添加自定义子版块';
-
-  @override
-  String get redditSubredditName => '子版块名称（不含 r/）';
-
-  @override
-  String get redditSubredditAdded => '已添加子版块';
-
-  @override
-  String get redditSubredditInvalid => '请输入有效的子版块名称';
-
-  @override
-  String get redditWallpaperUpdated => '壁纸更新成功';
-
-  @override
-  String get redditWallpaperFailed => '获取壁纸失败。如果问题持续，请在设置中配置 Reddit Client ID。';
 
   @override
   String get addToFavorites => '加入收藏';

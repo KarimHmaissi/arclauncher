@@ -41,7 +41,8 @@ If you'd like early access to new features and want to help test upcoming releas
 
 ### Wallpapers & Screensavers
 - **Video Wallpapers** - Set animated video files (MP4/WebM) as the home screen background.
-- **Slideshows** - Rotate wallpapers from custom subreddits or Unsplash categories with configurable intervals.
+- **Slideshows** - 4K photos (Windows Spotlight or Bing photo of the day) or Unsplash categories, with configurable intervals.
+- **Photo screensaver** - "Arc Photos" shows the same 4K photos and wakes instantly on any button.
 - **OLED Protection** - Pitch-black theme option and screensaver with position-shifting clock to prevent burn-in.
 - **Dynamic Wallpapers** - Automatically switch wallpapers or enable dark mode based on the time of day.
 

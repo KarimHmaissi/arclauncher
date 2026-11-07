@@ -132,6 +132,7 @@ public class MainActivity extends FlutterActivity {
                     result.success(null);
                 }
                 case "openScreensaverSettings" -> result.success(openScreensaverSettings());
+                case "isPhotoScreensaverInUse" -> result.success(PhotoScreensaverService.isInUse(this));
                 case "openAppInfo" -> result.success(openAppInfo(call.arguments()));
                 case "uninstallApp" -> result.success(uninstallApp(call.arguments()));
                 case "isDefaultLauncher" -> result.success(isDefaultLauncher());

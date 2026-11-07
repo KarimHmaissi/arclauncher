@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:convert';
+
 import 'package:flauncher/database.dart';
 import 'package:flauncher/flauncher.dart';
 import 'package:flauncher/flauncher_channel.dart';
@@ -24,6 +26,7 @@ import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/providers/photo_wallpaper_source.dart';
 import 'package:flauncher/providers/reel_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/wallpaper_service.dart';
@@ -209,6 +212,127 @@ void main() {
     await _pumpWidgetWithProviders(tester, mkWallpaperService(false), appsService, mkSettingsService());
 
     expect(find.byKey(Key("background")), findsOneWidget);
+  });
+
+  testWidgets("Home page shows the 4K photo title and credit", (tester) async {
+    final appsService = mkAppService();
+    when(appsService.categoriesWithApps).thenReturn([]);
+    final wallpaperService = mkWallpaperService();
+    when(wallpaperService.photoWallpaperCredit).thenReturn(const PhotoCredit('Photo title', 'Place · © Photographer'));
+
+    await _pumpWidgetWithProviders(tester, wallpaperService, appsService, mkSettingsService());
+
+    expect(find.text('Photo title'), findsOneWidget);
+    expect(find.text('Place · © Photographer'), findsOneWidget);
+  });
+
+  group("wallpaper on return to Home", () {
+    late _ListenableWallpaperService wallpaperService;
+    late int revision;
+
+    Future<void> pumpHome(WidgetTester tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn([]);
+      wallpaperService = _ListenableWallpaperService();
+      stubWallpaperService(wallpaperService);
+      revision = 1;
+      when(wallpaperService.wallpaperRevision).thenAnswer((_) => revision);
+      await _pumpWidgetWithProviders(tester, wallpaperService, appsService, mkSettingsService());
+      expect(find.byKey(const ValueKey("background_1")), findsOneWidget);
+    }
+
+    void changeWallpaper() {
+      revision++;
+      wallpaperService.notify();
+    }
+
+    Future<void> setLifecycle(WidgetTester tester, List<AppLifecycleState> states) async {
+      for (final state in states) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+    }
+
+    RawImage backgroundImage(WidgetTester tester, int revision) => tester.widget<RawImage>(
+      find.descendant(of: find.byKey(ValueKey("background_$revision")), matching: find.byType(RawImage)),
+    );
+
+    /// Lets image decoding (real async work) finish.
+    Future<void> decode(WidgetTester tester) =>
+        tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+
+    testWidgets("a wallpaper that changed while Arc was hidden is decoded while away and shows at once", (
+      tester,
+    ) async {
+      await pumpHome(tester);
+
+      await setLifecycle(tester, [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused]);
+      when(wallpaperService.wallpaper).thenReturn(MemoryImage(_onePixelPng()));
+      changeWallpaper();
+      await decode(tester); // No frames run while Arc is hidden.
+      await setLifecycle(tester, [AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey("background_2")), findsOneWidget);
+      expect(find.byKey(const ValueKey("background_1")), findsNothing);
+      // The first frame back already paints the new photo: no blank frame.
+      expect(backgroundImage(tester, 2).image, isNotNull);
+      await tester.pump(const Duration(seconds: 4)); // Let the resume re-read timer finish.
+    });
+
+    testWidgets("if the new wallpaper is still decoding on return, the old one stays until it is ready", (
+      tester,
+    ) async {
+      await pumpHome(tester);
+
+      await setLifecycle(tester, [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused]);
+      when(wallpaperService.wallpaper).thenReturn(MemoryImage(_onePixelPng()));
+      changeWallpaper();
+      await setLifecycle(tester, [AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey("background_1")), findsOneWidget);
+
+      await decode(tester);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey("background_1")), findsNothing);
+      expect(backgroundImage(tester, 2).image, isNotNull);
+      await tester.pump(const Duration(seconds: 4));
+    });
+
+    testWidgets("a replaced wallpaper photo leaves the image cache", (tester) async {
+      await pumpHome(tester);
+      final first = MemoryImage(_onePixelPng());
+      when(wallpaperService.wallpaper).thenReturn(first);
+      changeWallpaper();
+      await tester.pump();
+      await decode(tester);
+      await tester.pump(const Duration(seconds: 2));
+      final key = await ResizeImage(
+        first,
+        height: tester.view.physicalSize.height.round(),
+      ).obtainKey(ImageConfiguration.empty);
+      expect(PaintingBinding.instance.imageCache.containsKey(key), isTrue);
+
+      when(wallpaperService.wallpaper).thenReturn(MemoryImage(_onePixelPng()));
+      changeWallpaper();
+      await tester.pump();
+
+      expect(PaintingBinding.instance.imageCache.containsKey(key), isFalse);
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets("a wallpaper change while Arc is on screen still crossfades", (tester) async {
+      await pumpHome(tester);
+
+      changeWallpaper();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byKey(const ValueKey("background_2")), findsOneWidget);
+      expect(find.byKey(const ValueKey("background_1")), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.byKey(const ValueKey("background_1")), findsNothing);
+    });
   });
 
   testWidgets("Pressing select on settings icon opens SettingsPanel", (tester) async {
@@ -605,16 +729,35 @@ WatchNextService mkWatchNextService() {
   return watchNextService;
 }
 
-WallpaperService mkWallpaperService([bool wallpaper = true]) {
-  final wallpaperService = MockWallpaperService();
+WallpaperService mkWallpaperService([bool wallpaper = true]) => stubWallpaperService(MockWallpaperService(), wallpaper);
+
+/// A mock wallpaper service whose listeners really are notified.
+class _ListenableWallpaperService extends MockWallpaperService {
+  final ChangeNotifier _notifier = ChangeNotifier();
+
+  @override
+  void addListener(VoidCallback? listener) => _notifier.addListener(listener!);
+
+  @override
+  void removeListener(VoidCallback? listener) => _notifier.removeListener(listener!);
+
+  // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+  void notify() => _notifier.notifyListeners();
+}
+
+T stubWallpaperService<T extends MockWallpaperService>(T wallpaperService, [bool wallpaper = true]) {
   when(wallpaperService.gradient).thenReturn(FLauncherGradients.greatWhale);
   when(wallpaperService.wallpaper).thenReturn(wallpaper ? Image.asset('assets/icon.png').image : null);
   when(wallpaperService.wallpaperVideoFile).thenReturn(null);
   when(wallpaperService.wallpaperRevision).thenReturn(0);
   when(wallpaperService.slideshowAuthor).thenReturn(null);
-  when(wallpaperService.redditWallpaperCredit).thenReturn(null);
+  when(wallpaperService.photoWallpaperCredit).thenReturn(null);
   return wallpaperService;
 }
+
+/// A 1x1 PNG, a new list each time (so each MemoryImage is a different image).
+Uint8List _onePixelPng() =>
+    base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==');
 
 AppsService mkAppService() {
   final appsService = MockAppsService();
