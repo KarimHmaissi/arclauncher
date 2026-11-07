@@ -123,6 +123,9 @@ public class MainActivity extends FlutterActivity {
                 case "launchActivityFromAction" -> result.success(launchActivityFromAction(call.arguments()));
                 case "launchApp" -> result.success(launchApp(call.arguments()));
                 case "openSettings" -> result.success(openSettings());
+                // Fork: the Reel tile (plezy://reel).
+                case "resolveUriHandler" -> result.success(resolveUriHandler(call.arguments()));
+                case "launchUri" -> result.success(launchUri(call.arguments()));
                 case "installApk" -> result.success(installApk(call.arguments()));
                 case "requestInstallUnknownAppsPermission" -> {
                     requestInstallUnknownAppsPermission();
@@ -535,6 +538,41 @@ public class MainActivity extends FlutterActivity {
             // noinspection deprecation
             return NetworkUtils.getNetworkInformation(this, connectivityManager.getActiveNetworkInfo());
         }
+    }
+
+    // Fork: the Reel tile. Package visibility for these lookups comes from the
+    // VIEW/plezy <queries> entry in AndroidManifest.xml.
+    private static final String REEL_LOG_TAG = "ArcReel";
+
+    private Intent viewIntent(String uri) {
+        return new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+    }
+
+    /** The package that handles ACTION_VIEW for uri, or null when none is installed. */
+    private String resolveUriHandler(String uri) {
+        if (uri == null || uri.isEmpty()) {
+            return null;
+        }
+        List<ResolveInfo> handlers = getPackageManager()
+                .queryIntentActivities(viewIntent(uri), PackageManager.MATCH_DEFAULT_ONLY);
+        String packageName = handlers.isEmpty() ? null : handlers.get(0).activityInfo.packageName;
+        android.util.Log.d(REEL_LOG_TAG, "resolve " + uri + " -> " + packageName
+                + " (" + handlers.size() + " handler(s))");
+        return packageName;
+    }
+
+    /** Fires ACTION_VIEW for uri. False when nothing handles it or the start failed. */
+    private boolean launchUri(String uri) {
+        String packageName = resolveUriHandler(uri);
+        if (packageName == null) {
+            android.util.Log.w(REEL_LOG_TAG, "launch " + uri + ": no handler installed");
+            return false;
+        }
+        Intent intent = viewIntent(uri);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        boolean started = tryStartActivity(intent);
+        android.util.Log.i(REEL_LOG_TAG, "launch " + uri + " -> " + packageName + " started=" + started);
+        return started;
     }
 
     private boolean tryStartActivity(Intent intent) {

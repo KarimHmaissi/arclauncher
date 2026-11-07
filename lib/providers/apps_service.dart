@@ -371,7 +371,8 @@ class AppsService extends ChangeNotifier
       (c) => c.name.toLowerCase() == "all apps",
       orElse: () {
         return _categoriesById.values.firstWhere(
-          (c) => c.name.toLowerCase() != 'favorites',
+          // Fork: a Reel section never takes apps.
+          (c) => c.name.toLowerCase() != 'favorites' && c.type != CategoryType.reel,
           orElse: () => _categoriesById.values.first,
         );
       },
@@ -733,7 +734,16 @@ class AppsService extends ChangeNotifier
 
     try {
       newCategoryId = await _database.transaction(() async {
-        int newCategoryId = await _database.insertCategory(CategoriesCompanion.insert(name: categoryName, order: 0));
+        // Fork: store the chosen settings too, not just the name, so a new
+        // section keeps its layout (e.g. a Reel tile) after a restart.
+        int newCategoryId = await _database.insertCategory(CategoriesCompanion.insert(
+          name: categoryName,
+          order: 0,
+          sort: Value(sort),
+          type: Value(type),
+          rowHeight: Value(rowHeight),
+          columnsCount: Value(columnsCount),
+        ));
         await _database.updateCategories(orderedCategories);
 
         return newCategoryId;

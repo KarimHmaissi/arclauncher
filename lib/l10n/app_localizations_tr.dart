@@ -205,6 +205,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get rowHeight => 'Satır yüksekliği';
 
   @override
+  String get reelTileTitle => 'The Reel';
+
+  @override
+  String get reelLayout => 'The Reel (Plezy\'yi açar)';
+
+  @override
   String get save => 'Kaydet';
 
   @override

@@ -24,12 +24,14 @@ import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/providers/reel_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/wallpaper_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
 import 'package:flauncher/widgets/application_info_panel.dart';
 import 'package:flauncher/widgets/apps_grid.dart';
 import 'package:flauncher/widgets/category_row.dart';
+import 'package:flauncher/widgets/reel_tile.dart';
 import 'package:flauncher/widgets/settings/settings_panel.dart';
 import 'package:flauncher/widgets/settings/settings_panel_page.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +43,7 @@ import 'package:provider/provider.dart';
 import 'helpers.dart';
 import 'mocks.dart';
 import 'mocks.mocks.dart';
+import 'reel_fakes.dart';
 
 
 void main() {
@@ -81,6 +84,103 @@ void main() {
     expect(find.byType(SliverGrid), findsOneWidget);
     expect(findAppCard("me.efesser.flauncher.2"), findsOneWidget);
     expect(findAppCard("me.efesser.flauncher.1"), findsOneWidget);
+  });
+
+  group("Reel tile", () {
+    List<Category> reelLayout() => [
+          CategoryWithApps(fakeCategory(name: "Favorites", order: 0, type: CategoryType.row), [
+            fakeApp(packageName: "com.example.harborlights", name: "Harbor Lights"),
+          ]),
+          CategoryWithApps(fakeCategory(name: "Up next", order: 1, type: CategoryType.reel), []),
+        ];
+
+    Future<ReelService> reelService(FakeReelChannel channel) async {
+      final service = ReelService(channel, listenToLifecycle: false);
+      await service.refresh();
+      return service;
+    }
+
+    Future<void> pumpReel(WidgetTester tester, AppsService appsService, [ReelService? reel]) async {
+      await _pumpWidgetWithProviders(
+          tester, mkWallpaperService(), appsService, mkSettingsService(), mkWatchNextService(), reel);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets("a Reel section shows its tile while Plezy can open it", (tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn(reelLayout());
+
+      await pumpReel(tester, appsService, await reelService(FakeReelChannel(handler: "com.example.viewer")));
+
+      expect(find.byType(ReelTile), findsOneWidget);
+      expect(find.text("Up next"), findsOneWidget);
+      expect(find.text("The Reel"), findsOneWidget);
+    });
+
+    testWidgets("a Reel section is hidden when nothing handles plezy://reel", (tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn(reelLayout());
+
+      await pumpReel(tester, appsService, await reelService(FakeReelChannel(handler: null)));
+
+      expect(find.byType(ReelTile), findsNothing);
+      expect(find.text("Up next"), findsNothing);
+      expect(findAppCard("com.example.harborlights"), findsOneWidget);
+    });
+
+    testWidgets("a Reel section is hidden without the Reel service", (tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn(reelLayout());
+
+      await pumpReel(tester, appsService);
+
+      expect(find.byType(ReelTile), findsNothing);
+    });
+
+    testWidgets("the tile appears once Plezy is installed", (tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn(reelLayout());
+      final channel = FakeReelChannel(handler: null);
+      final reel = await reelService(channel);
+
+      await pumpReel(tester, appsService, reel);
+      expect(find.byType(ReelTile), findsNothing);
+
+      channel.handler = "com.example.viewer";
+      reel.onAppsChanged(2);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReelTile), findsOneWidget);
+    });
+
+    testWidgets("selecting the tile opens plezy://reel", (tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn(reelLayout());
+      final channel = FakeReelChannel(handler: "com.example.viewer");
+
+      await pumpReel(tester, appsService, await reelService(channel));
+      await tester.tap(find.byType(ReelTile));
+      await tester.pumpAndSettle();
+
+      expect(channel.launched, ["plezy://reel"]);
+    });
+
+    testWidgets("OK on the focused tile opens plezy://reel", (tester) async {
+      final appsService = mkAppService();
+      when(appsService.categoriesWithApps).thenReturn(reelLayout());
+      final channel = FakeReelChannel(handler: "com.example.viewer");
+
+      await pumpReel(tester, appsService, await reelService(channel));
+      final inkWell = find.descendant(of: find.byType(ReelTile), matching: find.byType(InkWell));
+      tester.widget<InkWell>(inkWell).focusNode!.requestFocus();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.widget<InkWell>(inkWell).focusNode!.hasFocus, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(channel.launched, ["plezy://reel"]);
+    });
   });
 
   testWidgets("Home page shows category empty-state", (tester) async {
@@ -547,7 +647,8 @@ Future<void> _pumpWidgetWithProviders(
   WallpaperService wallpaperService,
   AppsService appsService,
   SettingsService settingsService,
-  [WatchNextService? watchNextService,]
+  [WatchNextService? watchNextService,
+  ReelService? reelService,]
 ) async {
   try {
     final cwa = appsService.categoriesWithApps;
@@ -564,6 +665,7 @@ Future<void> _pumpWidgetWithProviders(
         ChangeNotifierProvider<WatchNextService>.value(value: watchNextService ?? mkWatchNextService()),
         ChangeNotifierProvider(create: (_) => LauncherState()),
         ChangeNotifierProvider(create: (_) => NetworkService(FLauncherChannel())),
+        if (reelService != null) ChangeNotifierProvider<ReelService>.value(value: reelService),
       ],
       builder: (_, __) => MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

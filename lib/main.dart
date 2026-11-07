@@ -23,6 +23,7 @@ import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/providers/reel_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/brightness_service.dart';
 import 'package:flauncher/providers/wallpaper_service.dart';
@@ -48,6 +49,11 @@ Future<void> main() async {
             create: (_) => SettingsService(sharedPreferences),
             lazy: false),
         ChangeNotifierProvider(create: (_) => AppsService(fLauncherChannel, fLauncherDatabase)),
+        // Fork: the Reel tile. Re-checks for Plezy whenever the app list changes.
+        ChangeNotifierProxyProvider<AppsService, ReelService>(
+            create: (_) => ReelService(fLauncherChannel),
+            update: (_, appsService, reelService) =>
+                reelService!..onAppsChanged(appsService.applications.length)),
         ChangeNotifierProvider(create: (_) => LauncherState()),
         ChangeNotifierProvider(create: (_) => NetworkService(fLauncherChannel)),
         ChangeNotifierProvider(

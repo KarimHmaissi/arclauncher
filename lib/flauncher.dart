@@ -27,6 +27,7 @@ import 'package:flauncher/custom_traversal_policy.dart';
 import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
+import 'package:flauncher/providers/reel_service.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/wallpaper_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
@@ -36,6 +37,7 @@ import 'package:flauncher/widgets/category_clean_row.dart';
 import 'package:flauncher/widgets/category_row.dart';
 import 'package:flauncher/widgets/dock_contour_painter.dart';
 import 'package:flauncher/widgets/launcher_alternative_view.dart';
+import 'package:flauncher/widgets/reel_tile.dart';
 import 'package:flauncher/widgets/focus_aware_app_bar.dart';
 import 'package:flauncher/widgets/wallpaper_video_background.dart';
 import 'package:flauncher/widgets/watch_next_focus.dart';
@@ -343,6 +345,8 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     final watchNextBigPicture = context.select<SettingsService, bool>((s) => s.watchNextBigPictureMode);
     final watchNextVisible = context.select<WatchNextService, bool>((s) => s.hasVisibleSection);
     final reserveWatchNextSpace = showWatchNextSection && watchNextVisible;
+    // Fork: Reel sections show only while Plezy can open plezy://reel.
+    final reelTileAvailable = context.select<ReelService?, bool>((s) => s?.available ?? false);
 
     if (favoriteApps.isEmpty && otherSections.isEmpty) return _emptyState(context);
 
@@ -393,6 +397,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
           firstCategoryAlreadyFound: favoriteApps.isNotEmpty,
           showAppNames: showAppNames,
           onFirstSectionFocused: favoriteApps.isNotEmpty ? _scrollDockToTop : null,
+          reelTileAvailable: reelTileAvailable,
         ),
         SliverToBoxAdapter(child: SizedBox(height: _bottomScrollPadding(context, hasDock: favoriteApps.isNotEmpty))),
       ],
@@ -411,6 +416,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     bool firstCategoryAlreadyFound = false,
     required bool showAppNames,
     VoidCallback? onFirstSectionFocused,
+    bool reelTileAvailable = false,
   }) {
     final List<Widget> slivers = [];
     bool firstCategoryFound = firstCategoryAlreadyFound;
@@ -426,7 +432,9 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
 
       final category = section as Category;
       final filteredApps = category.applications;
-      if (filteredApps.isEmpty) continue;
+      // Fork: a Reel section holds no apps and is hidden without Plezy.
+      final isReelSection = category.type == CategoryType.reel;
+      if (isReelSection ? !reelTileAvailable : filteredApps.isEmpty) continue;
 
       final bool isFirstSection = !firstCategoryFound;
       if (isFirstSection) firstCategoryFound = true;
@@ -524,6 +532,28 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                       onMove: (direction) => _onGridMove(context, category, index, direction, filteredApps),
                       onMoveEnd: () => context.read<AppsService>().saveApplicationOrderInCategory(category),
                     ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          break;
+        case CategoryType.reel:
+          slivers.add(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: kLauncherSectionHorizontalPadding,
+                  right: kLauncherSectionHorizontalPadding,
+                  bottom: 8,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ReelTile(
+                    key: sectionKey,
+                    category: category,
+                    handleUpNavigationToSettings: isFirstSection,
+                    onFocused: onAppFocused,
                   ),
                 ),
               ),

@@ -19,6 +19,7 @@
 import 'dart:async';
 
 import 'package:flauncher/providers/apps_service.dart';
+import 'package:flauncher/providers/reel_service.dart';
 import 'package:flauncher/widgets/settings/settings_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -271,6 +272,10 @@ class LauncherSectionPanelPage extends StatelessWidget
   }
 }
 
+// Fork: section names the app fills with apps by name, so a Reel section
+// (which holds none) can't use them.
+const Set<String> _reelReservedNames = {'Favorites', 'All Apps'};
+
 class _CategorySettings extends StatefulWidget
 {
   final Category? category;
@@ -295,6 +300,9 @@ class _CategorySettingsState extends State<_CategorySettings>
   int _columnsCount;
   int _rowHeight;
   String _name;
+  // Fork: bumped when the Reel layout renames the section, so the name
+  // dropdown (which only reads its initial value) shows the new name.
+  int _nameFieldGeneration = 0;
 
   late Category? _category;
 
@@ -370,6 +378,10 @@ class _CategorySettingsState extends State<_CategorySettings>
   @override
   Widget build(BuildContext context) {
     AppLocalizations localizations = AppLocalizations.of(context)!;
+    // Fork: the Reel layout is offered only while Plezy can open it (or when
+    // this section already is one, so it can still be edited or changed back).
+    final bool reelAvailable = context.select<ReelService?, bool>((s) => s?.available ?? false);
+    final bool offerReel = reelAvailable || _categoryType == CategoryType.reel;
     
     return Column(
       children: [
@@ -379,6 +391,7 @@ class _CategorySettingsState extends State<_CategorySettings>
           Padding(
             padding: EdgeInsets.only(top: 4),
             child: DropdownButtonFormField<String>(
+              key: ValueKey(_nameFieldGeneration),
               decoration: InputDecoration(
                   border: OutlineInputBorder(),
                   focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white, width: 2)),
@@ -429,6 +442,7 @@ class _CategorySettingsState extends State<_CategorySettings>
               )
             )
           ),
+        if (_categoryType != CategoryType.reel)
         _listTile(
           context,
           Text(localizations.sort),
@@ -481,6 +495,14 @@ class _CategorySettingsState extends State<_CategorySettings>
               onChanged: (value) {
                 setState(() {
                   _categoryType = value!;
+                  // Fork: a Reel section takes the tile's name rather than an
+                  // empty or special one ("Favorites" is the dock, "All Apps"
+                  // receives new apps), which a Reel section must never be.
+                  if (_categoryType == CategoryType.reel && (_name.isEmpty || _reelReservedNames.contains(_name))) {
+                    _name = localizations.reelTileTitle;
+                    _nameController.text = _name;
+                    _nameFieldGeneration++;
+                  }
                 });
                 _notifyChange();
               },
@@ -494,7 +516,12 @@ class _CategorySettingsState extends State<_CategorySettings>
                 DropdownMenuItem(
                   value: CategoryType.grid,
                   child: Text(localizations.grid, style: Theme.of(context).textTheme.bodySmall)
-                )
+                ),
+                if (offerReel)
+                  DropdownMenuItem(
+                    value: CategoryType.reel,
+                    child: Text(localizations.reelLayout, style: Theme.of(context).textTheme.bodySmall)
+                  )
               ]
             )
           )
@@ -530,7 +557,8 @@ class _CategorySettingsState extends State<_CategorySettings>
               )
             )
           ),
-        if (_categoryType == CategoryType.row)
+        // Fork: the Reel tile is sized like a row card, so it takes a row height.
+        if (_categoryType == CategoryType.row || _categoryType == CategoryType.reel)
           _listTile(
             context,
             Text(localizations.rowHeight),
@@ -585,8 +613,12 @@ class _CategorySettingsState extends State<_CategorySettings>
         || initialColumnsCount != _columnsCount
         || initialRowHeight != _rowHeight || initialName != _name ;
 
+    // Fork: "Favorites" (the dock) and "All Apps" (where apps land) hold
+    // apps, so neither can be a Reel section.
+    final bool valid = _name.isNotEmpty && !(_categoryType == CategoryType.reel && _reelReservedNames.contains(_name));
+
     _SettingsState state = context.read();
-    state.setFlags(_name.isNotEmpty, dirty);
+    state.setFlags(valid, dirty);
   }
 
   Future<void> _save() async
@@ -597,8 +629,8 @@ class _CategorySettingsState extends State<_CategorySettings>
           columnsCount: _columnsCount, rowHeight: _rowHeight
       );
 
-      // Auto-populate special categories
-      if (_name == 'All Apps') {
+      // Auto-populate special categories (never a Reel section: it holds no apps)
+      if (_name == 'All Apps' && _categoryType != CategoryType.reel) {
         try {
           // Find the actual category object using the ID we just got
           final createdCategory = service.categories.firstWhere((c) => c.id == categoryId);
