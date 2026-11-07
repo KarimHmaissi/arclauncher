@@ -1,3 +1,21 @@
+/*
+ * FLauncher
+ * Copyright (C) 2021  Étienne Fesser
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.omeda.arc;
 
 import android.animation.Animator;
@@ -10,7 +28,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
-import android.service.dreams.DreamService;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -27,7 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
-public class ClockScreensaverService extends DreamService {
+public class ClockScreensaverService extends InstantWakeDreamService {
     private FrameLayout container;
     private Handler handler;
     private Runnable updateTimeRunnable;
@@ -54,9 +71,6 @@ public class ClockScreensaverService extends DreamService {
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
-
-        setInteractive(false);
-        setFullscreen(true);
 
         // Create container
         container = new FrameLayout(this);
@@ -172,29 +186,7 @@ public class ClockScreensaverService extends DreamService {
         tv.setTextColor(Color.WHITE);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize);
 
-        switch (clockStyle) {
-            case "bold":
-                tv.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
-                break;
-            case "retro":
-                tv.setTypeface(Typeface.create("monospace", Typeface.NORMAL));
-                break;
-            case "elegant":
-                tv.setTypeface(Typeface.create("serif", Typeface.NORMAL));
-                break;
-            case "neon":
-                tv.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
-                break;
-            case "pixel":
-                tv.setTypeface(Typeface.create("monospace", Typeface.BOLD));
-                break;
-            case "digital":
-                tv.setTypeface(Typeface.create("monospace", Typeface.NORMAL));
-                break;
-            default: // "minimal"
-                tv.setTypeface(Typeface.create("sans-serif-thin", Typeface.NORMAL));
-                break;
-        }
+        tv.setTypeface(typefaceFor(clockStyle));
 
         tv.setGravity(Gravity.CENTER);
         tv.setShadowLayer(15, 0, 0, 0x60FFFFFF);
@@ -202,6 +194,26 @@ public class ClockScreensaverService extends DreamService {
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT));
         return tv;
+    }
+
+    /** The typeface of Arc's screensaver clock style (see the Flutter clock style setting). */
+    static Typeface typefaceFor(String clockStyle) {
+        switch (clockStyle == null ? "minimal" : clockStyle) {
+            case "bold":
+                return Typeface.create("sans-serif", Typeface.BOLD);
+            case "retro":
+                return Typeface.create("monospace", Typeface.NORMAL);
+            case "elegant":
+                return Typeface.create("serif", Typeface.NORMAL);
+            case "neon":
+                return Typeface.create("sans-serif-light", Typeface.NORMAL);
+            case "pixel":
+                return Typeface.create("monospace", Typeface.BOLD);
+            case "digital":
+                return Typeface.create("monospace", Typeface.NORMAL);
+            default: // "minimal"
+                return Typeface.create("sans-serif-thin", Typeface.NORMAL);
+        }
     }
 
     private float getCharWidth(TextView tv) {
@@ -437,6 +449,13 @@ public class ClockScreensaverService extends DreamService {
         AnimatorSet fullAnim = new AnimatorSet();
         fullAnim.playTogether(moveAnim, scaleSet);
         fullAnim.start();
+    }
+
+    @Override
+    protected void onExitNow() {
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
     }
 
     @Override

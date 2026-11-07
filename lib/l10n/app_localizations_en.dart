@@ -543,6 +543,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t get a new photo. Check your connection.';
 
   @override
+  String get photoScreensaverClock => 'Clock on screensaver';
+
+  @override
+  String get photoScreensaverUse => 'Use as screensaver';
+
+  @override
+  String get photoScreensaverHint =>
+      'Pick \"Arc Photos\" in the screen saver list';
+
+  @override
   String get wallpaperInterval => 'Change every';
 
   @override

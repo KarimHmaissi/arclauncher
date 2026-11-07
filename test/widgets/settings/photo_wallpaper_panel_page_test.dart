@@ -23,6 +23,7 @@ import 'package:flauncher/providers/wallpaper_service.dart';
 import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/photo_wallpaper_panel_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:provider/provider.dart';
@@ -35,6 +36,7 @@ MockSettingsService _settings({bool enabled = false, int interval = 60, PhotoSou
   when(s.photoWallpaperSource).thenReturn(source);
   when(s.photoWallpaperIntervalMinutes).thenReturn(interval);
   when(s.photoWallpaperShowCredit).thenReturn(true);
+  when(s.photoScreensaverClock).thenReturn(true);
   return s;
 }
 
@@ -67,6 +69,9 @@ void main() {
     expect(find.text('1 hour'), findsOneWidget);
     expect(find.text('Show photo credit'), findsOneWidget);
     expect(find.text('Change photo now'), findsNothing);
+    expect(find.text('Clock on screensaver'), findsOneWidget);
+    expect(find.text('Use as screensaver'), findsOneWidget);
+    expect(find.text('Pick "Arc Photos" in the screen saver list'), findsOneWidget);
   });
 
   testWidgets("shows 'Change photo now' while on", (tester) async {
@@ -123,6 +128,35 @@ void main() {
     await tester.pump();
 
     verify(settings.setPhotoWallpaperShowCredit(false));
+  });
+
+  testWidgets("the screensaver clock switch calls its setter", (tester) async {
+    final settings = _settings();
+    await _pump(tester, settings);
+
+    await tester.ensureVisible(find.text('Clock on screensaver'));
+    await tester.tap(find.text('Clock on screensaver'));
+    await tester.pump();
+
+    verify(settings.setPhotoScreensaverClock(false));
+  });
+
+  testWidgets("'Use as screensaver' opens the system screensaver settings", (tester) async {
+    final calls = <String>[];
+    const channel = MethodChannel('me.efesser.flauncher/method');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      return true;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    await _pump(tester, _settings());
+
+    await tester.ensureVisible(find.text('Use as screensaver'));
+    await tester.tap(find.text('Use as screensaver'));
+    await tester.pump();
+
+    expect(calls, ['openScreensaverSettings']);
   });
 
   testWidgets("'Change photo now' advances the photo and reports the result", (tester) async {

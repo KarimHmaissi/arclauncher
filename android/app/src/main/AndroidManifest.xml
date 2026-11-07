@@ -108,6 +108,20 @@
                 android:resource="@xml/screensaver" />
         </service>
 
+        <service
+            android:name=".PhotoScreensaverService"
+            android:exported="true"
+            android:label="Arc Photos"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/photo_screensaver" />
+        </service>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

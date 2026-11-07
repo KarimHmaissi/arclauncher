@@ -545,6 +545,16 @@ class AppLocalizationsTr extends AppLocalizations {
       'Yeni fotoğraf alınamadı. Bağlantınızı kontrol edin.';
 
   @override
+  String get photoScreensaverClock => 'Ekran koruyucuda saat';
+
+  @override
+  String get photoScreensaverUse => 'Ekran koruyucu olarak kullan';
+
+  @override
+  String get photoScreensaverHint =>
+      'Ekran koruyucu listesinden \"Arc Photos\"u seçin';
+
+  @override
   String get wallpaperInterval => 'Değiştirme sıklığı';
 
   @override

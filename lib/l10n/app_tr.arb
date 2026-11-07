@@ -161,6 +161,9 @@
     "photoWallpaperChangeNow": "Fotoğrafı şimdi değiştir",
     "photoWallpaperUpdated": "Fotoğraf değiştirildi",
     "photoWallpaperFailed": "Yeni fotoğraf alınamadı. Bağlantınızı kontrol edin.",
+    "photoScreensaverClock": "Ekran koruyucuda saat",
+    "photoScreensaverUse": "Ekran koruyucu olarak kullan",
+    "photoScreensaverHint": "Ekran koruyucu listesinden \"Arc Photos\"u seçin",
     "wallpaperInterval": "Değiştirme sıklığı",
     "wallpaperIntervalMinutes": "{minutes} dk",
     "@wallpaperIntervalMinutes": {

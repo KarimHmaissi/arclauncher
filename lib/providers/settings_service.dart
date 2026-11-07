@@ -57,6 +57,7 @@ const String _photoWallpaperIntervalMinutes = "photo_wallpaper_interval_minutes"
 const String _photoWallpaperShowCredit = "photo_wallpaper_show_credit";
 const String _photoWallpaperCredits = "photo_wallpaper_credits";
 const String _photoWallpaperSeen = "photo_wallpaper_seen";
+const String _photoScreensaverClock = "photo_screensaver_clock";
 
 const List<int> WATCH_NEXT_MAX_ITEMS_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 50];
 const String _dockDarkBackground = "dock_dark_background";
@@ -450,6 +451,14 @@ class SettingsService extends ChangeNotifier {
     final seen = [...photoWallpaperSeen.where((s) => !added.contains(s)), ...added];
     final start = seen.length > photoWallpaperSeenMax ? seen.length - photoWallpaperSeenMax : 0;
     await _sharedPreferences.setStringList(_photoWallpaperSeen, seen.sublist(start));
+  }
+
+  /// Whether the Arc Photos screensaver shows the clock (read by the Android side).
+  bool get photoScreensaverClock => _sharedPreferences.getBool(_photoScreensaverClock) ?? true;
+
+  Future<void> setPhotoScreensaverClock(bool show) async {
+    await _sharedPreferences.setBool(_photoScreensaverClock, show);
+    notifyListeners();
   }
 
   /// Prefs of the Reddit wallpaper, which was removed when Reddit started

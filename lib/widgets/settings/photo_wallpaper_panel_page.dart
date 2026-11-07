@@ -24,9 +24,11 @@ import 'package:flauncher/widgets/rounded_switch_list_tile.dart';
 import 'package:flauncher/widgets/settings/focusable_settings_tile.dart';
 import 'package:flauncher/widgets/settings/settings_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-/// Settings › Wallpaper › 4K photos: Windows Spotlight or Bing photo of the day.
+/// Settings › Wallpaper › 4K photos: Windows Spotlight or Bing photo of the day,
+/// and the Arc Photos screensaver that shows the same photos.
 class PhotoWallpaperPanelPage extends StatelessWidget {
   static const String routeName = "photo_wallpaper_panel";
 
@@ -81,6 +83,19 @@ class PhotoWallpaperPanelPage extends StatelessWidget {
                       title: Text(localizations.photoWallpaperChangeNow),
                       onPressed: () => _changeNow(context, localizations),
                     ),
+                  RoundedSwitchListTile(
+                    title: Text(localizations.photoScreensaverClock),
+                    secondary: const Icon(Icons.schedule),
+                    value: settings.photoScreensaverClock,
+                    onChanged: (value) => settings.setPhotoScreensaverClock(value),
+                  ),
+                  FocusableSettingsTile(
+                    showChevron: true,
+                    leading: const Icon(Icons.bedtime_outlined),
+                    title: Text(localizations.photoScreensaverUse),
+                    subtitle: Text(localizations.photoScreensaverHint),
+                    onPressed: _openScreensaverSettings,
+                  ),
                 ],
               ),
             ),
@@ -121,6 +136,11 @@ class PhotoWallpaperPanelPage extends StatelessWidget {
         ),
       );
     }
+  }
+
+  static Future<void> _openScreensaverSettings() async {
+    const platform = MethodChannel('me.efesser.flauncher/method');
+    await platform.invokeMethod('openScreensaverSettings');
   }
 
   static String _intervalLabel(AppLocalizations localizations, int minutes) {

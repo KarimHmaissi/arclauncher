@@ -1100,6 +1100,24 @@ abstract class AppLocalizations {
   /// **'Couldn\'t get a new photo. Check your connection.'**
   String get photoWallpaperFailed;
 
+  /// No description provided for @photoScreensaverClock.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock on screensaver'**
+  String get photoScreensaverClock;
+
+  /// No description provided for @photoScreensaverUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Use as screensaver'**
+  String get photoScreensaverUse;
+
+  /// No description provided for @photoScreensaverHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick \"Arc Photos\" in the screen saver list'**
+  String get photoScreensaverHint;
+
   /// No description provided for @wallpaperInterval.
   ///
   /// In en, this message translates to:

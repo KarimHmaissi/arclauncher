@@ -1997,6 +1997,13 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as List<String>);
 
   @override
+  bool get photoScreensaverClock => (super.noSuchMethod(
+        Invocation.getter(#photoScreensaverClock),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
   bool get hasListeners => (super.noSuchMethod(
         Invocation.getter(#hasListeners),
         returnValue: false,
@@ -2472,6 +2479,16 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
         Invocation.method(
           #addPhotoWallpaperSeen,
           [ids],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setPhotoScreensaverClock(bool? show) => (super.noSuchMethod(
+        Invocation.method(
+          #setPhotoScreensaverClock,
+          [show],
         ),
         returnValue: _i9.Future<void>.value(),
         returnValueForMissingStub: _i9.Future<void>.value(),

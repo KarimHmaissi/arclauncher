@@ -549,6 +549,16 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se pudo obtener una foto nueva. Comprueba la conexión.';
 
   @override
+  String get photoScreensaverClock => 'Reloj en el salvapantallas';
+
+  @override
+  String get photoScreensaverUse => 'Usar como salvapantallas';
+
+  @override
+  String get photoScreensaverHint =>
+      'Elige «Arc Photos» en la lista de salvapantallas';
+
+  @override
   String get wallpaperInterval => 'Cambiar cada';
 
   @override

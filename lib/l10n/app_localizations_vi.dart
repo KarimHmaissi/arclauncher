@@ -545,6 +545,16 @@ class AppLocalizationsVi extends AppLocalizations {
       'Không tải được ảnh mới. Hãy kiểm tra kết nối.';
 
   @override
+  String get photoScreensaverClock => 'Đồng hồ trên trình bảo vệ màn hình';
+
+  @override
+  String get photoScreensaverUse => 'Dùng làm trình bảo vệ màn hình';
+
+  @override
+  String get photoScreensaverHint =>
+      'Chọn \"Arc Photos\" trong danh sách trình bảo vệ màn hình';
+
+  @override
   String get wallpaperInterval => 'Đổi ảnh sau mỗi';
 
   @override

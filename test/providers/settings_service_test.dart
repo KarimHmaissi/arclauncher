@@ -205,6 +205,14 @@ void main() async {
       expect(settingsService.photoWallpaperShowCredit, isTrue);
       expect(settingsService.photoWallpaperCredits, isEmpty);
       expect(settingsService.photoWallpaperSeen, isEmpty);
+      expect(settingsService.photoScreensaverClock, isTrue);
+    });
+
+    test("the screensaver clock is stored where the Android screensaver reads it", () async {
+      await settingsService.setPhotoScreensaverClock(false);
+
+      expect(settingsService.photoScreensaverClock, isFalse);
+      expect(sharedPreferences.getBool("photo_screensaver_clock"), isFalse);
     });
 
     test("setters persist and notify", () async {

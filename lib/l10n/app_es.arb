@@ -218,6 +218,9 @@
     "photoWallpaperChangeNow": "Cambiar foto ahora",
     "photoWallpaperUpdated": "Foto cambiada",
     "photoWallpaperFailed": "No se pudo obtener una foto nueva. Comprueba la conexión.",
+    "photoScreensaverClock": "Reloj en el salvapantallas",
+    "photoScreensaverUse": "Usar como salvapantallas",
+    "photoScreensaverHint": "Elige «Arc Photos» en la lista de salvapantallas",
     "wallpaperInterval": "Cambiar cada",
     "wallpaperIntervalMinutes": "{minutes} min",
     "@wallpaperIntervalMinutes": {

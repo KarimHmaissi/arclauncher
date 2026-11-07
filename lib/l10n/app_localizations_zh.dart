@@ -531,6 +531,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get photoWallpaperFailed => '无法获取新照片，请检查网络连接。';
 
   @override
+  String get photoScreensaverClock => '屏保显示时钟';
+
+  @override
+  String get photoScreensaverUse => '用作屏保';
+
+  @override
+  String get photoScreensaverHint => '在屏保列表中选择\"Arc Photos\"';
+
+  @override
   String get wallpaperInterval => '更换间隔';
 
   @override
