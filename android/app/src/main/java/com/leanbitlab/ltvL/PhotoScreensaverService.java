@@ -20,12 +20,15 @@ package com.omeda.arc;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -57,6 +60,8 @@ import java.util.concurrent.Executors;
  */
 public class PhotoScreensaverService extends InstantWakeDreamService {
     private static final long PHOTO_INTERVAL_MS = 180_000;
+    /** While no photo is on screen, look for one this often (the pool may be filling). */
+    private static final long EMPTY_RECHECK_MS = 20_000;
     private static final long CROSSFADE_MS = 2_500;
     private static final long ENTER_FADE_MS = 1_200;
     private static final int BURN_IN_SHIFT_PX = 24;
@@ -65,6 +70,9 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
     private static final String FLUTTER_PREFS = "FlutterSharedPreferences";
     private static final String OWN_PREFS = "arc_photo_screensaver";
     private static final String KEY_SHOWN = "shown_order";
+    private static final String KEY_LAST_DREAM = "last_dream_at";
+    /** A dream this recent means the screensaver is in use, so Arc keeps its photos fresh. */
+    private static final long IN_USE_WINDOW_MS = 7L * 24 * 60 * 60 * 1000;
 
     private final Random random = new Random();
 
@@ -84,6 +92,9 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
     private Bitmap pendingOld;
     private String shownId;
     private boolean fading;
+    private boolean decoding;
+    /** Set once the dream is ending, by input or by the system; late callbacks then do nothing. */
+    private boolean stopped;
     /** Ids shown, least recent first; kept across sessions so each one starts somewhere new. */
     private final List<String> shownOrder = new ArrayList<>();
 
@@ -91,7 +102,7 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
         @Override
         public void run() {
             showNextPhoto();
-            handler.postDelayed(this, PHOTO_INTERVAL_MS);
+            handler.postDelayed(this, shownBitmap == null ? EMPTY_RECHECK_MS : PHOTO_INTERVAL_MS);
         }
     };
 
@@ -110,7 +121,10 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
 
         handler = new Handler(Looper.getMainLooper());
         decoder = Executors.newSingleThreadExecutor();
+        stopped = false;
         loadShownOrder();
+        getSharedPreferences(OWN_PREFS, MODE_PRIVATE).edit()
+                .putLong(KEY_LAST_DREAM, System.currentTimeMillis()).apply();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
@@ -225,8 +239,37 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
         return best;
     }
 
+    private boolean isStopped() {
+        return stopped || isExiting();
+    }
+
+    /**
+     * Whether Arc Photos is the chosen screensaver, or has run lately (some
+     * Android versions don't let apps read the choice). Arc keeps the photo pool
+     * filled while it is, even with the 4K wallpaper off.
+     */
+    static boolean isInUse(Context context) {
+        try {
+            String components = Settings.Secure.getString(context.getContentResolver(), "screensaver_components");
+            if (components != null) {
+                for (String flat : components.split(",")) {
+                    ComponentName name = ComponentName.unflattenFromString(flat.trim());
+                    if (name != null
+                            && name.getPackageName().equals(context.getPackageName())
+                            && name.getClassName().equals(PhotoScreensaverService.class.getName())) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Not readable here: fall back to when the dream last ran.
+        }
+        long last = context.getSharedPreferences(OWN_PREFS, MODE_PRIVATE).getLong(KEY_LAST_DREAM, 0);
+        return System.currentTimeMillis() - last < IN_USE_WINDOW_MS;
+    }
+
     private void showNextPhoto() {
-        if (isExiting() || fading) return;
+        if (isStopped() || fading || decoding) return;
         List<File> photos = cachedPhotos();
         if (photos.isEmpty()) {
             // Nothing cached yet: black with the clock, shifted against burn-in.
@@ -242,11 +285,14 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
         final DisplayMetrics metrics = getResources().getDisplayMetrics();
         final int targetWidth = metrics.widthPixels;
         final int targetHeight = metrics.heightPixels;
+        decoding = true;
         try {
             decoder.execute(() -> {
                 Bitmap bitmap = decode(path, targetWidth, targetHeight);
                 handler.post(() -> {
-                    if (isExiting() || bitmap == null) {
+                    decoding = false;
+                    // A decode can't be interrupted, so it may land after the dream ended.
+                    if (isStopped() || bitmap == null) {
                         if (bitmap != null) bitmap.recycle();
                         return;
                     }
@@ -255,6 +301,7 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
             });
         } catch (Exception ignored) {
             // The decoder was shut down: the dream is ending.
+            decoding = false;
         }
     }
 
@@ -286,9 +333,19 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
         updateClockVisibility();
 
         if (shownBitmap == null) {
-            // First photo: no crossfade, the enter fade covers it.
-            front.setImageBitmap(bitmap);
+            // First photo: fade it in over black (the enter fade may be long over
+            // when the pool was empty at first).
             shownBitmap = bitmap;
+            front.setImageBitmap(bitmap);
+            front.setAlpha(0f);
+            fading = true;
+            front.animate().alpha(1f).setDuration(ENTER_FADE_MS).setListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    front.animate().setListener(null);
+                    fading = false;
+                }
+            });
             return;
         }
 
@@ -302,7 +359,7 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
             @Override
             public void onAnimationEnd(Animator animation) {
                 front.animate().setListener(null);
-                if (isExiting()) return;
+                if (isStopped()) return;
                 ImageView old = front;
                 front = back;
                 back = old;
@@ -412,6 +469,7 @@ public class PhotoScreensaverService extends InstantWakeDreamService {
     // Cleanup
 
     private void stopEverything() {
+        stopped = true;
         if (handler != null) handler.removeCallbacksAndMessages(null);
         if (root != null) root.animate().cancel();
         if (front != null) {
