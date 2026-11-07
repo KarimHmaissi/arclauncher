@@ -316,7 +316,10 @@ void main() {
         return _jpegResponse();
       });
 
-      final saved = await source(client, poolSize: 3).fillPool(source: PhotoSource.bing, seen: {}, protect: {'old_a'});
+      final saved = await source(
+        client,
+        poolSize: 3,
+      ).fillPool(source: PhotoSource.bing, seen: {}, protect: () => {'old_a'});
 
       expect(saved, hasLength(3));
       final files = _files(cacheDir);
@@ -325,6 +328,45 @@ void main() {
       expect(files, isNot(contains('old_b.jpg')));
       expect(files, isNot(contains('old_c.jpg')));
       expect(files.where((f) => f.endsWith('.part')), isEmpty);
+    });
+
+    test('protect is asked at each prune: a photo put on screen during the fill is kept', () async {
+      _seed(cacheDir, ['old_a', 'old_b', 'old_c']); // old_a oldest, next in line to go
+      var onScreen = <String>{};
+      final client = MockClient((r) async {
+        if (_isBingApi(r.url)) return http.Response(_fixture('bing_ok.json'), 200);
+        // The wallpaper moves to the oldest photo while the first download runs.
+        onScreen = {'old_a'};
+        return _jpegResponse();
+      });
+
+      await source(client, poolSize: 3).fillPool(source: PhotoSource.bing, seen: {}, protect: () => onScreen);
+
+      expect(_files(cacheDir), contains('old_a.jpg'));
+      expect(_files(cacheDir), hasLength(3));
+    });
+
+    test('onSaved runs for each photo as it lands, before the next download', () async {
+      final events = <String>[];
+      final client = MockClient((r) async {
+        if (_isBingApi(r.url)) return http.Response(_fixture('bing_ok.json'), 200);
+        events.add('download');
+        return _jpegResponse();
+      });
+
+      final saved = await source(client).fillPool(
+        source: PhotoSource.bing,
+        seen: {},
+        onSaved: (p) async {
+          expect(File('${cacheDir.path}/${p.id}.jpg').existsSync(), isTrue);
+          events.add('saved ${p.id}');
+        },
+      );
+
+      expect(saved, hasLength(3));
+      expect(events, [
+        for (final p in saved) ...['download', 'saved ${p.id}'],
+      ]);
     });
 
     test('keeps at most poolSize photos over many fills', () async {

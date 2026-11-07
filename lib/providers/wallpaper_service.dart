@@ -56,12 +56,25 @@ class WallpaperService extends ChangeNotifier {
   Timer? _photoFillTimer;
   File? _photoFile;
 
+  /// When [_photoFile] went on screen, if known.
+  DateTime? _photoShownAt;
+
   /// Photo ids shown as the home wallpaper this session, least recent first.
   final List<String> _photoShown = [];
   static const int photoShownMax = 200;
 
   /// When the pool was last topped up, to keep downloads slow and polite.
   DateTime? _lastPhotoFill;
+
+  /// The top-up running now, if any.
+  Future<void>? _photoFilling;
+
+  /// Completed when a photo lands while [advancePhotoWallpaper] waits for one.
+  Completer<void>? _photoArrival;
+
+  final Future<bool> Function()? _photoScreensaverInUse;
+  final DateTime Function() _now;
+  final Duration _photoConfigDebounce;
 
   /// The source the home wallpaper was last set up for.
   PhotoSource? _photoSourceShown;
@@ -75,6 +88,15 @@ class WallpaperService extends ChangeNotifier {
   /// How often the photo pool is topped up with new photos, independent of the
   /// wallpaper interval. Also keeps the Arc Photos screensaver fresh.
   static const Duration photoPoolRefresh = Duration(hours: 3);
+
+  /// A periodic top-up may fire a little under [photoPoolRefresh] after the
+  /// last one (timer drift, or a fill started just after the timer); it still counts.
+  static const Duration photoPoolRefreshSlack = Duration(minutes: 5);
+
+  /// Whether the pool is due for a top-up, given when it was [last] topped up.
+  @visibleForTesting
+  static bool photoFillDue(DateTime? last, DateTime now) =>
+      last == null || now.difference(last) >= photoPoolRefresh - photoPoolRefreshSlack;
 
   /// Credit to display while a 4K photo is on screen.
   PhotoCredit? get photoWallpaperCredit {
@@ -104,9 +126,17 @@ class WallpaperService extends ChangeNotifier {
     orElse: () => FLauncherGradients.saintPetersburg,
   );
 
-  WallpaperService(this._settingsService, {PhotoWallpaperSource Function(Directory)? photoSourceFactory})
-    : _photoSourceFactory = photoSourceFactory ?? PhotoWallpaperSource.new,
-      _wallpaper = null {
+  WallpaperService(
+    this._settingsService, {
+    PhotoWallpaperSource Function(Directory)? photoSourceFactory,
+    Future<bool> Function()? photoScreensaverInUse,
+    DateTime Function()? now,
+    Duration photoConfigDebounce = WallpaperService.photoConfigDebounce,
+  }) : _photoSourceFactory = photoSourceFactory ?? PhotoWallpaperSource.new,
+       _photoScreensaverInUse = photoScreensaverInUse,
+       _now = now ?? DateTime.now,
+       _photoConfigDebounce = photoConfigDebounce,
+       _wallpaper = null {
     _settingsService.addListener(_onSettingsChanged);
     _init();
   }
@@ -142,7 +172,7 @@ class WallpaperService extends ChangeNotifier {
       // choices triggers a single fetch instead of one per change.
       _photoDebounce?.cancel();
       if (_settingsService.photoWallpaperEnabled) {
-        _photoDebounce = Timer(photoConfigDebounce, _updatePhotoState);
+        _photoDebounce = Timer(_photoConfigDebounce, _updatePhotoState);
       } else {
         _updatePhotoState();
       }
@@ -173,8 +203,7 @@ class WallpaperService extends ChangeNotifier {
     _slideshow = UnsplashSlideshow(Directory("${directory.path}/slideshow"));
     _slideshowFile = newestCachedImage(_slideshow.cacheDir);
     _photoSource = _photoSourceFactory(Directory("${directory.path}/photo_wallpaper"));
-    _photoFile = newestCachedImage(_photoSource.cacheDir);
-    if (_photoFile != null) _photoShown.add(PhotoWallpaperSource.idOf(_photoFile!));
+    _restorePhoto();
     unawaited(_deleteLegacyRedditCache(directory));
     _initialized = true;
 
@@ -184,7 +213,23 @@ class WallpaperService extends ChangeNotifier {
     _updateWallpaper();
     _updateTimerState();
     _updateSlideshowState();
+    // Topped up whether or not the photos are the wallpaper: the Arc Photos
+    // screensaver shows them too.
+    _photoFillTimer = Timer.periodic(photoPoolRefresh, (_) => _fillPhotoPool());
     _updatePhotoState();
+  }
+
+  /// After a restart, the photo that was on screen (else the newest one).
+  void _restorePhoto() {
+    final id = _settingsService.photoWallpaperCurrent;
+    final saved = id == null ? null : File("${_photoSource.cacheDir.path}/$id.jpg");
+    if (saved != null && saved.existsSync()) {
+      _photoFile = saved;
+      _photoShownAt = _settingsService.photoWallpaperCurrentSince;
+    } else {
+      _photoFile = newestCachedImage(_photoSource.cacheDir);
+    }
+    if (_photoFile != null) _photoShown.add(PhotoWallpaperSource.idOf(_photoFile!));
   }
 
   /// The Reddit wallpaper was removed; its cached images are dead weight.
@@ -232,48 +277,77 @@ class WallpaperService extends ChangeNotifier {
     _photoTimer = null;
     _photoRetry?.cancel();
     _photoRetry = null;
-    _photoFillTimer?.cancel();
-    _photoFillTimer = null;
-    if (!_settingsService.photoWallpaperEnabled) return;
+    if (!_settingsService.photoWallpaperEnabled) {
+      // Still fill an incomplete pool if the Arc Photos screensaver uses it.
+      if (_photoSource.cachedPhotos().length < _photoSource.poolSize) _fillPhotoPool();
+      return;
+    }
     final source = _settingsService.photoWallpaperSource;
     final sourceChanged = _photoSourceShown != null && _photoSourceShown != source;
     _photoSourceShown = source;
-    // A new source should show its own photos now, not after the next top-up.
-    if (sourceChanged) _lastPhotoFill = null;
     final interval = Duration(minutes: _settingsService.photoWallpaperIntervalMinutes);
     _photoTimer = Timer.periodic(interval, (_) => advancePhotoWallpaper());
-    _photoFillTimer = Timer.periodic(photoPoolRefresh, (_) => _fillPhotoPool());
+    if (sourceChanged) {
+      // A new source should get its own photos now, not at the next top-up.
+      _lastPhotoFill = null;
+      _fillPhotoPool();
+    }
     final file = _photoFile;
+    final onDisk = file != null && file.existsSync();
+    final shownAt = _photoShownAt ?? (onDisk ? file.lastModifiedSync() : null);
     // Reuse the cached photo after a reboot unless it is already due for a change.
-    if (sourceChanged ||
-        file == null ||
-        !file.existsSync() ||
-        DateTime.now().difference(file.lastModifiedSync()) >= interval) {
+    if (sourceChanged || !onDisk || shownAt == null || _now().difference(shownAt) >= interval) {
       advancePhotoWallpaper();
     } else if (_photoSource.cachedPhotos().length < _photoSource.poolSize) {
       _fillPhotoPool();
     }
   }
 
-  /// Downloads new photos into the pool and records their credits. Runs at most
-  /// once per [photoPoolRefresh] unless [force]d (nothing else to show).
-  Future<void> _fillPhotoPool({bool force = false}) async {
-    if (!_settingsService.photoWallpaperEnabled) return;
-    final last = _lastPhotoFill;
-    if (!force && last != null && DateTime.now().difference(last) < photoPoolRefresh) return;
-    _lastPhotoFill = DateTime.now();
-    final current = _photoFile;
-    final saved = await _photoSource.fillPool(
-      source: _settingsService.photoWallpaperSource,
-      seen: _settingsService.photoWallpaperSeen.toSet(),
-      protect: {if (current != null) PhotoWallpaperSource.idOf(current)},
-    );
-    if (saved.isNotEmpty) await _settingsService.addPhotoWallpaperSeen(saved.map((p) => p.id));
-    // Keep credits for the photos still on disk only (the pool was just pruned).
-    final onDisk = _photoSource.cachedPhotos().map(PhotoWallpaperSource.idOf).toSet();
-    final credits = {..._settingsService.photoWallpaperCredits, for (final p in saved) p.id: p.credit}
-      ..removeWhere((id, _) => !onDisk.contains(id));
-    await _settingsService.setPhotoWallpaperCredits(credits);
+  /// Downloads new photos into the pool and records their credits, while the
+  /// photos are the wallpaper or the Arc Photos screensaver is in use. Runs at
+  /// most once per [photoPoolRefresh] unless [force]d (nothing else to show);
+  /// a call made while one runs gets that one.
+  Future<void> _fillPhotoPool({bool force = false}) {
+    final running = _photoFilling;
+    if (running != null) return running;
+    if (!force && !photoFillDue(_lastPhotoFill, _now())) return Future.value();
+    final fill = _runPhotoFill().whenComplete(() => _photoFilling = null);
+    _photoFilling = fill;
+    return fill;
+  }
+
+  Future<void> _runPhotoFill() async {
+    try {
+      if (!_settingsService.photoWallpaperEnabled && !await _isPhotoScreensaverInUse()) return;
+      _lastPhotoFill = _now();
+      final saved = await _photoSource.fillPool(
+        source: _settingsService.photoWallpaperSource,
+        seen: _settingsService.photoWallpaperSeen.toSet(),
+        // Asked at each prune: a photo shown while the fill runs is kept too.
+        protect: () => {if (_photoFile != null) PhotoWallpaperSource.idOf(_photoFile!)},
+        onSaved: _onPhotoSaved,
+      );
+      // Keep credits for the photos still on disk only (the pool was just pruned).
+      final onDisk = _photoSource.cachedPhotos().map(PhotoWallpaperSource.idOf).toSet();
+      final credits = {..._settingsService.photoWallpaperCredits, for (final p in saved) p.id: p.credit}
+        ..removeWhere((id, _) => !onDisk.contains(id));
+      await _settingsService.setPhotoWallpaperCredits(credits);
+    } catch (e) {
+      debugPrint("Photo wallpaper: $e");
+    }
+  }
+
+  Future<bool> _isPhotoScreensaverInUse() => (_photoScreensaverInUse ?? _channel.isPhotoScreensaverInUse)();
+
+  /// Records each photo as it lands, so it can be shown (with its credit) at once.
+  Future<void> _onPhotoSaved(PhotoWallpaper photo) async {
+    await _settingsService.addPhotoWallpaperSeen([photo.id]);
+    await _settingsService.setPhotoWallpaperCredits({
+      ..._settingsService.photoWallpaperCredits,
+      photo.id: photo.credit,
+    });
+    final waiting = _photoArrival;
+    if (waiting != null && !waiting.isCompleted) waiting.complete();
   }
 
   /// The next pool photo for the home wallpaper: one from the chosen source if
@@ -293,12 +367,17 @@ class WallpaperService extends ChangeNotifier {
   }
 
   /// Shows the next 4K photo from the pool ("Change photo now" and the timer),
-  /// downloading more first when the pool has no other photo of the chosen source.
+  /// downloading more first when the pool has no other photo of the chosen
+  /// source. Shows the first new photo as soon as it lands, while the rest of
+  /// the top-up keeps downloading.
   Future<void> advancePhotoWallpaper() async {
     var next = _pickPhoto(preferredOnly: true);
     if (next == null) {
-      // Wait for new photos; skip the top-up limit only when there is nothing else to show.
-      await _fillPhotoPool(force: _pickPhoto(preferredOnly: false) == null);
+      final arrival = _photoArrival = Completer<void>();
+      // Skip the top-up limit only when there is nothing else to show.
+      final fill = _fillPhotoPool(force: _pickPhoto(preferredOnly: false) == null);
+      await Future.any([fill, arrival.future]);
+      if (identical(_photoArrival, arrival)) _photoArrival = null;
       next = _pickPhoto(preferredOnly: false);
     }
     if (!_settingsService.photoWallpaperEnabled) return;
@@ -313,11 +392,13 @@ class WallpaperService extends ChangeNotifier {
     }
     _photoRetry?.cancel();
     _photoFile = next;
+    final shownAt = _photoShownAt = _now();
     final id = PhotoWallpaperSource.idOf(next);
     _photoShown
       ..remove(id)
       ..add(id);
     if (_photoShown.length > photoShownMax) _photoShown.removeAt(0);
+    unawaited(_settingsService.setPhotoWallpaperCurrent(id, shownAt));
     _updateWallpaper(force: true);
   }
 

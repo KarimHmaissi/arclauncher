@@ -229,7 +229,20 @@ void main() async {
       expect(sharedPreferences.getString("photo_wallpaper_source"), "bing");
       expect(settingsService.photoWallpaperIntervalMinutes, 360);
       expect(settingsService.photoWallpaperShowCredit, isFalse);
+      // Read under this name by the Android screensaver.
+      expect(sharedPreferences.getBool("photo_wallpaper_show_credit"), isFalse);
       expect(notified, 3);
+    });
+
+    test("the photo on screen is remembered across restarts", () async {
+      expect(settingsService.photoWallpaperCurrent, isNull);
+      expect(settingsService.photoWallpaperCurrentSince, isNull);
+      final since = DateTime.fromMillisecondsSinceEpoch(1700000000000);
+
+      await settingsService.setPhotoWallpaperCurrent('sp_1', since);
+
+      expect(settingsService.photoWallpaperCurrent, 'sp_1');
+      expect(settingsService.photoWallpaperCurrentSince, since);
     });
 
     test("4K photos and Unsplash exclude each other", () async {

@@ -142,25 +142,35 @@ class PhotoWallpaperSource {
 
   /// Downloads new photos into the pool: up to [maxNewPerFill] while it holds
   /// fewer than [poolSize], else [rotateCount] that replace the oldest ones.
-  /// Photos whose id is in [seen] (downloaded before) are skipped, and those in
-  /// [protect] (on screen) are never pruned. Tries [source], then
+  /// Photos whose id is in [seen] (downloaded before) are skipped, and those
+  /// [protect] returns (on screen) are never pruned; it is asked at each prune,
+  /// so a photo shown while the fill runs is safe too. [onSaved] runs after
+  /// each photo lands, before the next download. Tries [source], then
   /// [source.other] if [source] fails. Only one fill runs at a time: a call
-  /// made while one is running gets that one's result. Returns the photos
-  /// saved; never throws.
+  /// made while one is running gets that one's result (and its [onSaved]).
+  /// Returns the photos saved; never throws.
   Future<List<PhotoWallpaper>> fillPool({
     required PhotoSource source,
     required Set<String> seen,
-    Set<String> protect = const {},
+    Set<String> Function()? protect,
+    Future<void> Function(PhotoWallpaper photo)? onSaved,
   }) {
     final running = _filling;
     if (running != null) return running;
-    final fill = _fill(source, seen, protect);
+    final fill = _fill(source, seen, protect ?? _nothing, onSaved);
     _filling = fill;
     fill.whenComplete(() => _filling = null).ignore();
     return fill;
   }
 
-  Future<List<PhotoWallpaper>> _fill(PhotoSource source, Set<String> seen, Set<String> protect) async {
+  static Set<String> _nothing() => const {};
+
+  Future<List<PhotoWallpaper>> _fill(
+    PhotoSource source,
+    Set<String> seen,
+    Set<String> Function() protect,
+    Future<void> Function(PhotoWallpaper photo)? onSaved,
+  ) async {
     final saved = <PhotoWallpaper>[];
     try {
       final count = cachedPhotos().length;
@@ -169,7 +179,7 @@ class PhotoWallpaperSource {
       // photos downloaded before are welcome again rather than showing nothing.
       final exclude = count < 2 ? <String>{} : {...seen};
       for (final s in [source, source.other]) {
-        final failed = await _fillFrom(s, want - saved.length, exclude, protect, saved);
+        final failed = await _fillFrom(s, want - saved.length, exclude, protect, onSaved, saved);
         if (!failed) break;
       }
     } catch (e) {
@@ -187,7 +197,8 @@ class PhotoWallpaperSource {
     PhotoSource source,
     int want,
     Set<String> exclude,
-    Set<String> protect,
+    Set<String> Function() protect,
+    Future<void> Function(PhotoWallpaper photo)? onSaved,
     List<PhotoWallpaper> saved,
   ) async {
     if (want <= 0) return false;
@@ -218,6 +229,13 @@ class PhotoWallpaperSource {
         saved.add(photo);
         added++;
         await _prune(protect);
+        if (onSaved != null) {
+          try {
+            await onSaved(photo);
+          } catch (e) {
+            debugPrint("Photo wallpaper: $e");
+          }
+        }
       } else {
         failures++;
       }
@@ -345,8 +363,8 @@ class PhotoWallpaperSource {
     }
   }
 
-  /// Deletes temp files and the oldest photos beyond [poolSize], never one in [protect].
-  Future<void> _prune(Set<String> protect) async {
+  /// Deletes temp files and the oldest photos beyond [poolSize], never one [protect] returns.
+  Future<void> _prune(Set<String> Function() protect) async {
     try {
       if (!await cacheDir.exists()) return;
       for (final f in cacheDir.listSync().whereType<File>().where((f) => f.path.endsWith('.part'))) {
@@ -354,9 +372,10 @@ class PhotoWallpaperSource {
       }
       final photos = cachedPhotos();
       var excess = photos.length - poolSize;
+      final keep = protect();
       for (final f in photos.reversed) {
         if (excess <= 0) break;
-        if (protect.contains(idOf(f))) continue;
+        if (keep.contains(idOf(f))) continue;
         await f.delete();
         excess--;
       }

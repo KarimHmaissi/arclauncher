@@ -58,6 +58,8 @@ const String _photoWallpaperShowCredit = "photo_wallpaper_show_credit";
 const String _photoWallpaperCredits = "photo_wallpaper_credits";
 const String _photoWallpaperSeen = "photo_wallpaper_seen";
 const String _photoScreensaverClock = "photo_screensaver_clock";
+const String _photoWallpaperCurrent = "photo_wallpaper_current";
+const String _photoWallpaperCurrentSince = "photo_wallpaper_current_since";
 
 const List<int> WATCH_NEXT_MAX_ITEMS_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 50];
 const String _dockDarkBackground = "dock_dark_background";
@@ -451,6 +453,20 @@ class SettingsService extends ChangeNotifier {
     final seen = [...photoWallpaperSeen.where((s) => !added.contains(s)), ...added];
     final start = seen.length > photoWallpaperSeenMax ? seen.length - photoWallpaperSeenMax : 0;
     await _sharedPreferences.setStringList(_photoWallpaperSeen, seen.sublist(start));
+  }
+
+  /// Id of the 4K photo on the home screen, so a restart shows the same one.
+  String? get photoWallpaperCurrent => _sharedPreferences.getString(_photoWallpaperCurrent);
+
+  /// When [photoWallpaperCurrent] went on screen, or null if unknown.
+  DateTime? get photoWallpaperCurrentSince {
+    final ms = _sharedPreferences.getInt(_photoWallpaperCurrentSince);
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  Future<void> setPhotoWallpaperCurrent(String id, DateTime since) async {
+    await _sharedPreferences.setString(_photoWallpaperCurrent, id);
+    await _sharedPreferences.setInt(_photoWallpaperCurrentSince, since.millisecondsSinceEpoch);
   }
 
   /// Whether the Arc Photos screensaver shows the clock (read by the Android side).

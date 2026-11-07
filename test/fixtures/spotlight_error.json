@@ -3,8 +3,7 @@
   "ver": "1.0",
   "errors": [
    {
-    "code": 2040,
-    "msg": "Demand source returns error (Name: BATCH_REDIRECT, Error: ActivityId - eef39aa5-d3ab-4b35-ab86-3ff4a4533250, CorrelationVector: geAzyy15OEyZyngV.0.7.6, Message - Template path 'CPM2019/2256728678588573196_128000000005496349-638859210593140162' for locale 'XX-XX' not found.)."
+    "code": 2040
    }
   ]
  }
