@@ -272,6 +272,10 @@ class LauncherSectionPanelPage extends StatelessWidget
   }
 }
 
+// Fork: section names the app fills with apps by name, so a Reel section
+// (which holds none) can't use them.
+const Set<String> _reelReservedNames = {'Favorites', 'All Apps'};
+
 class _CategorySettings extends StatefulWidget
 {
   final Category? category;
@@ -491,9 +495,10 @@ class _CategorySettingsState extends State<_CategorySettings>
               onChanged: (value) {
                 setState(() {
                   _categoryType = value!;
-                  // Fork: a new Reel section starts with the tile's name rather
-                  // than the "Favorites" default, which would make it the dock.
-                  if (_categoryType == CategoryType.reel && (_name.isEmpty || _name == 'Favorites')) {
+                  // Fork: a Reel section takes the tile's name rather than an
+                  // empty or special one ("Favorites" is the dock, "All Apps"
+                  // receives new apps), which a Reel section must never be.
+                  if (_categoryType == CategoryType.reel && (_name.isEmpty || _reelReservedNames.contains(_name))) {
                     _name = localizations.reelTileTitle;
                     _nameController.text = _name;
                     _nameFieldGeneration++;
@@ -608,8 +613,9 @@ class _CategorySettingsState extends State<_CategorySettings>
         || initialColumnsCount != _columnsCount
         || initialRowHeight != _rowHeight || initialName != _name ;
 
-    // Fork: "Favorites" is the dock, so it can't be a Reel section.
-    final bool valid = _name.isNotEmpty && !(_categoryType == CategoryType.reel && _name == 'Favorites');
+    // Fork: "Favorites" (the dock) and "All Apps" (where apps land) hold
+    // apps, so neither can be a Reel section.
+    final bool valid = _name.isNotEmpty && !(_categoryType == CategoryType.reel && _reelReservedNames.contains(_name));
 
     _SettingsState state = context.read();
     state.setFlags(valid, dirty);

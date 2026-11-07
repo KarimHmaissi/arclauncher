@@ -164,6 +164,40 @@ void main() {
           .called(1);
       verifyNever(appsService.autoPopulateCategory(any));
     });
+
+    testWidgets("turning the All Apps section into a Reel renames it, so new apps never go into a hidden section",
+        (tester) async {
+      final appsService = MockAppsService();
+      final allApps = fakeCategory(name: "All Apps", type: CategoryType.grid);
+      when(appsService.launcherSections).thenReturn([allApps]);
+      when(appsService.updateCategory(any, any, any, any, any, any)).thenAnswer((_) async {});
+
+      await _pumpWidgetWithProviders(tester, appsService, 0, await reelService(handler: "com.example.viewer"));
+      await openLayoutMenu(tester);
+      await tester.tap(find.text("The Reel (opens Plezy)").last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.widgetWithText(FilledButton, "Save"));
+      await tester.tap(find.widgetWithText(FilledButton, "Save"));
+      await tester.pumpAndSettle();
+
+      verify(appsService.updateCategory(allApps.id, "The Reel", any, CategoryType.reel, any, any)).called(1);
+    });
+
+    testWidgets("a Reel section can't be saved under the All Apps name", (tester) async {
+      final appsService = MockAppsService();
+      final reel = fakeCategory(name: "Up next", type: CategoryType.reel);
+      when(appsService.launcherSections).thenReturn([reel]);
+
+      await _pumpWidgetWithProviders(tester, appsService, 0, await reelService(handler: "com.example.viewer"));
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("All Apps").last);
+      await tester.pumpAndSettle();
+
+      final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, "Save"));
+      expect(save.onPressed, isNull);
+    });
   });
 }
 
