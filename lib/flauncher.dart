@@ -83,6 +83,18 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   /// current wallpaper at once with no outgoing one fading out.
   int _wallpaperSwitcherGeneration = 0;
 
+  /// While Arc is away no frames run, so a wallpaper that changes then is never
+  /// decoded. It is decoded ahead instead, so Home's first frame back shows it.
+  WallpaperService? _precacheSource;
+  ImageProvider? _precachedWallpaper;
+  Future<void>? _precacheDone;
+  bool _precacheFinished = false;
+
+  /// The wallpaper image on screen. Once replaced it is evicted from the image
+  /// cache (a decoded photo is 8-33 MB); the outgoing one keeps its own copy
+  /// until its fade ends.
+  ImageProvider? _shownWallpaperImage;
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +107,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     WatchNextFocusRequests.requests.removeListener(_onLandOnWatchNext);
+    _precacheSource?.removeListener(_precacheWallpaper);
     _resumeReread?.cancel();
     _scrollController.dispose();
     _heroBackdropBaker.dispose();
@@ -122,18 +135,57 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
       }
     } else if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused) {
       _leftAt ??= DateTime.now();
-      _wallpaperRevisionWhenLeft ??= context.read<WallpaperService>().wallpaperRevision;
+      final wallpaperService = context.read<WallpaperService>();
+      _wallpaperRevisionWhenLeft ??= wallpaperService.wallpaperRevision;
+      if (_precacheSource == null) {
+        _precacheSource = wallpaperService;
+        wallpaperService.addListener(_precacheWallpaper);
+      }
     }
+  }
+
+  /// Decodes a wallpaper that changed while Arc is away (image decoding runs
+  /// without frames), so it is in the image cache when Arc comes back.
+  void _precacheWallpaper() {
+    final service = _precacheSource;
+    if (!mounted || service == null) return;
+    final image = _wallpaperImage(context, service);
+    if (image == _precachedWallpaper) return;
+    final previous = _precachedWallpaper;
+    // A photo replaced again before Arc came back is never shown.
+    if (previous != null && previous != _shownWallpaperImage) previous.evict();
+    _precachedWallpaper = image;
+    _precacheFinished = image == null;
+    _precacheDone = image == null
+        ? null
+        : precacheImage(image, context).whenComplete(() {
+            if (_precachedWallpaper == image) _precacheFinished = true;
+          });
   }
 
   /// Home must be back at once after a screensaver or app: a wallpaper that
   /// changed meanwhile is shown straight away instead of replaying the 1.5 s
-  /// crossfade on return.
+  /// crossfade on return. It was decoded while away, so its first frame shows
+  /// it; if the decode is still running, the swap happens the moment it ends
+  /// (the old wallpaper stays up meanwhile) rather than with a blank frame.
   void _showChangedWallpaperInstantly() {
     final revisionWhenLeft = _wallpaperRevisionWhenLeft;
     _wallpaperRevisionWhenLeft = null;
-    if (revisionWhenLeft != null && context.read<WallpaperService>().wallpaperRevision != revisionWhenLeft) {
+    _precacheSource?.removeListener(_precacheWallpaper);
+    _precacheSource = null;
+    final decoding = _precacheFinished ? null : _precacheDone;
+    _precachedWallpaper = null;
+    _precacheDone = null;
+    _precacheFinished = false;
+    final service = context.read<WallpaperService>();
+    final revision = service.wallpaperRevision;
+    if (revisionWhenLeft == null || revision == revisionWhenLeft) return;
+    if (decoding == null) {
       setState(() => _wallpaperSwitcherGeneration++);
+    } else {
+      decoding.whenComplete(() {
+        if (mounted && service.wallpaperRevision == revision) setState(() => _wallpaperSwitcherGeneration++);
+      });
     }
   }
 
@@ -691,11 +743,27 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
     );
   }
 
+  /// The wallpaper image as decoded for this screen (at its physical height,
+  /// not the photo's 2160 px), or null for a video or the gradient.
+  static ImageProvider? _wallpaperImage(BuildContext context, WallpaperService wallpaperService) {
+    final wallpaper = wallpaperService.wallpaper;
+    if (wallpaper == null || wallpaperService.wallpaperVideoFile != null) return null;
+    final height = (MediaQuery.sizeOf(context).height * MediaQuery.devicePixelRatioOf(context)).round();
+    return ResizeImage(wallpaper, height: height);
+  }
+
+  void _noteShownWallpaper(ImageProvider? image) {
+    final previous = _shownWallpaperImage;
+    if (previous == image) return;
+    _shownWallpaperImage = image;
+    previous?.evict();
+  }
+
   Widget _wallpaper(BuildContext context, WallpaperService wallpaperService) {
     final screenSize = MediaQuery.sizeOf(context);
-    final dpr = MediaQuery.devicePixelRatioOf(context);
     final videoFile = wallpaperService.wallpaperVideoFile;
     if (videoFile != null) {
+      _noteShownWallpaper(null);
       return SizedBox(
         width: screenSize.width,
         height: screenSize.height,
@@ -705,9 +773,11 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
         ),
       );
     }
-    if (wallpaperService.wallpaper != null) {
+    final image = _wallpaperImage(context, wallpaperService);
+    _noteShownWallpaper(image);
+    if (image != null) {
       return Image(
-        image: ResizeImage(wallpaperService.wallpaper!, height: (screenSize.height * dpr).round()),
+        image: image,
         key: ValueKey("background_${wallpaperService.wallpaperRevision}"),
         fit: BoxFit.cover,
         height: screenSize.height,
@@ -1044,36 +1114,23 @@ class _CinematicScrimPainter extends CustomPainter {
 
 /// Title and copyright of the 4K photo on screen, top right.
 class _PhotoCreditText extends StatelessWidget {
+  static const _creditShadows = [Shadow(blurRadius: 8, color: Colors.black87, offset: Offset(0, 1))];
+
   final PhotoCredit credit;
 
   const _PhotoCreditText(this.credit);
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.bodySmall;
-    const shadows = [Shadow(blurRadius: 4)];
+    // Both lines at full size with a strong shadow: read from across the room,
+    // over bright photos (snow, sky, beaches).
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70, shadows: _creditShadows);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          credit.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.end,
-          style: style?.copyWith(color: Colors.white70, shadows: shadows),
-        ),
-        Text(
-          credit.copyright,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.end,
-          style: style?.copyWith(
-            color: Colors.white54,
-            fontSize: (style.fontSize ?? 12) * 0.85,
-            shadows: shadows,
-          ),
-        ),
+        Text(credit.title, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: style),
+        Text(credit.copyright, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end, style: style),
       ],
     );
   }

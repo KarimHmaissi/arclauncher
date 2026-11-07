@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import 'dart:convert';
+
 import 'package:flauncher/database.dart';
 import 'package:flauncher/flauncher.dart';
 import 'package:flauncher/flauncher_channel.dart';
@@ -150,17 +152,74 @@ void main() {
       }
     }
 
-    testWidgets("a wallpaper that changed while Arc was hidden shows at once", (tester) async {
+    RawImage backgroundImage(WidgetTester tester, int revision) => tester.widget<RawImage>(
+      find.descendant(of: find.byKey(ValueKey("background_$revision")), matching: find.byType(RawImage)),
+    );
+
+    /// Lets image decoding (real async work) finish.
+    Future<void> decode(WidgetTester tester) =>
+        tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+
+    testWidgets("a wallpaper that changed while Arc was hidden is decoded while away and shows at once", (
+      tester,
+    ) async {
       await pumpHome(tester);
 
       await setLifecycle(tester, [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused]);
+      when(wallpaperService.wallpaper).thenReturn(MemoryImage(_onePixelPng()));
       changeWallpaper();
+      await decode(tester); // No frames run while Arc is hidden.
       await setLifecycle(tester, [AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]);
       await tester.pump();
 
       expect(find.byKey(const ValueKey("background_2")), findsOneWidget);
       expect(find.byKey(const ValueKey("background_1")), findsNothing);
+      // The first frame back already paints the new photo: no blank frame.
+      expect(backgroundImage(tester, 2).image, isNotNull);
       await tester.pump(const Duration(seconds: 4)); // Let the resume re-read timer finish.
+    });
+
+    testWidgets("if the new wallpaper is still decoding on return, the old one stays until it is ready", (
+      tester,
+    ) async {
+      await pumpHome(tester);
+
+      await setLifecycle(tester, [AppLifecycleState.inactive, AppLifecycleState.hidden, AppLifecycleState.paused]);
+      when(wallpaperService.wallpaper).thenReturn(MemoryImage(_onePixelPng()));
+      changeWallpaper();
+      await setLifecycle(tester, [AppLifecycleState.hidden, AppLifecycleState.inactive, AppLifecycleState.resumed]);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey("background_1")), findsOneWidget);
+
+      await decode(tester);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey("background_1")), findsNothing);
+      expect(backgroundImage(tester, 2).image, isNotNull);
+      await tester.pump(const Duration(seconds: 4));
+    });
+
+    testWidgets("a replaced wallpaper photo leaves the image cache", (tester) async {
+      await pumpHome(tester);
+      final first = MemoryImage(_onePixelPng());
+      when(wallpaperService.wallpaper).thenReturn(first);
+      changeWallpaper();
+      await tester.pump();
+      await decode(tester);
+      await tester.pump(const Duration(seconds: 2));
+      final key = await ResizeImage(
+        first,
+        height: tester.view.physicalSize.height.round(),
+      ).obtainKey(ImageConfiguration.empty);
+      expect(PaintingBinding.instance.imageCache.containsKey(key), isTrue);
+
+      when(wallpaperService.wallpaper).thenReturn(MemoryImage(_onePixelPng()));
+      changeWallpaper();
+      await tester.pump();
+
+      expect(PaintingBinding.instance.imageCache.containsKey(key), isFalse);
+      await tester.pump(const Duration(seconds: 2));
     });
 
     testWidgets("a wallpaper change while Arc is on screen still crossfades", (tester) async {
@@ -595,6 +654,10 @@ T stubWallpaperService<T extends MockWallpaperService>(T wallpaperService, [bool
   when(wallpaperService.photoWallpaperCredit).thenReturn(null);
   return wallpaperService;
 }
+
+/// A 1x1 PNG, a new list each time (so each MemoryImage is a different image).
+Uint8List _onePixelPng() =>
+    base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==');
 
 AppsService mkAppService() {
   final appsService = MockAppsService();
