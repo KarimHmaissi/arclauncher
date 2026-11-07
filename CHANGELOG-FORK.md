@@ -5,7 +5,7 @@ Changes in KarimHmaissi/arclauncher on top of upstream meddouribadis/arclauncher
 ## 2026-11-07
 
 - **Screensavers wake instantly.** New "Arc Photos" screensaver (pick it in
-  Android Settings › Screen saver) shows the same 4K photos as the
+  Android Settings › Device Preferences › Screen saver) shows the same 4K photos as the
   wallpaper, crossfading slowly every few minutes through every cached
   photo, with Arc's clock style and the photo credit. Any button or touch
   closes it at once: no fade-out, and the button press doesn't leak
