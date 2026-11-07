@@ -15,6 +15,8 @@ class AddToCategoryDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Selector<AppsService, List<Category>>(
         selector: (_, appsService) => appsService.categories
+            // Fork: a Reel section holds no apps.
+            .where((category) => category.type != CategoryType.reel)
             .where((category) => !category.applications.any((application) => application.packageName == selectedApplication.packageName))
             .toList(),
         builder: (context, categories, _) {

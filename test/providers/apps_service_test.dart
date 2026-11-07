@@ -265,8 +265,55 @@ void main() {
 
     await appsService.addCategory("New Category");
 
-    verify(database.insertCategory(CategoriesCompanion.insert(name: "New Category", order: 0)));
+    verify(database.insertCategory(CategoriesCompanion.insert(
+      name: "New Category",
+      order: 0,
+      sort: Value(Category.Sort),
+      type: Value(Category.Type),
+      rowHeight: Value(Category.RowHeight),
+      columnsCount: Value(Category.ColumnsCount),
+    )));
     verify(database.updateCategories([CategoriesCompanion(id: Value(existingCategory.id), order: Value(1))]));
+  });
+
+  test("addCategory stores the chosen layout, so a Reel section survives a restart", () async {
+    final channel = MockFLauncherChannel();
+    final database = MockFLauncherDatabase();
+    final appsService = await _buildInitialisedAppsService(channel, database, []);
+
+    await appsService.addCategory("The Reel", type: CategoryType.reel, rowHeight: 120);
+
+    final inserted = verify(database.insertCategory(captureAny)).captured.single as CategoriesCompanion;
+    expect(inserted.name, Value("The Reel"));
+    expect(inserted.type, Value(CategoryType.reel));
+    expect(inserted.rowHeight, Value(120));
+  });
+
+  test("a newly installed app never lands in a Reel section", () async {
+    final channel = MockFLauncherChannel();
+    final database = MockFLauncherDatabase();
+    final reel = fakeCategory(name: "The Reel", order: 0, type: CategoryType.reel);
+    final games = fakeCategory(name: "Games", order: 1);
+    when(channel.getApplications()).thenAnswer((_) => Future.value([]));
+    when(database.getApplications()).thenAnswer((_) => Future.value([]));
+    when(database.getCategories()).thenAnswer((_) => Future.value([CategoryWithApps(reel, []), CategoryWithApps(games, [])]));
+    when(database.getAppsCategories()).thenAnswer((_) => Future.value([]));
+    when(database.getLauncherSpacers()).thenAnswer((_) => Future.value([]));
+    when(database.wasCreated).thenReturn(false);
+    final appsService = AppsService(channel, database);
+    await untilCalled(channel.addAppsChangedListener(any));
+    final listener =
+        verify(channel.addAppsChangedListener(captureAny)).captured.single as void Function(Map<String, dynamic>);
+
+    listener({
+      'action': 'PACKAGE_ADDED',
+      'activityInfo': {'packageName': 'com.example.harborlights', 'name': 'Harbor Lights', 'version': '1.0.0', 'sideloaded': false},
+    });
+    await untilCalled(database.insertAppsCategories(any));
+
+    final rows = verify(database.insertAppsCategories(captureAny)).captured.single as List<AppsCategoriesCompanion>;
+    expect(rows.single.categoryId, Value(games.id));
+    expect(appsService.categories.firstWhere((c) => c.id == reel.id).applications, isEmpty);
   });
 
   test("renameCategory renames category", () async {

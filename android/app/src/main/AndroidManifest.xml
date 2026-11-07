@@ -53,6 +53,11 @@
         <intent>
             <action android:name="android.intent.action.OPEN_DOCUMENT" />
         </intent>
+        <!-- Fork: the Reel tile checks for, and opens, plezy://reel. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="plezy" />
+        </intent>
     </queries>
 
     <application

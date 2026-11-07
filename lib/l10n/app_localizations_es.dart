@@ -207,6 +207,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get rowHeight => 'Row height';
 
   @override
+  String get reelTileTitle => 'The Reel';
+
+  @override
+  String get reelLayout => 'The Reel (abre Plezy)';
+
+  @override
   String get save => 'Guardar';
 
   @override

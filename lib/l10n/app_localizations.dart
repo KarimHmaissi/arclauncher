@@ -476,6 +476,18 @@ abstract class AppLocalizations {
   /// **'Row height'**
   String get rowHeight;
 
+  /// Fork: the launcher tile that opens The Reel in Plezy
+  ///
+  /// In en, this message translates to:
+  /// **'The Reel'**
+  String get reelTileTitle;
+
+  /// Fork: section layout option for the Reel tile
+  ///
+  /// In en, this message translates to:
+  /// **'The Reel (opens Plezy)'**
+  String get reelLayout;
+
   /// No description provided for @save.
   ///
   /// In en, this message translates to:

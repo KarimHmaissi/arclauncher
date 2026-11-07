@@ -205,6 +205,12 @@ class AppLocalizationsVi extends AppLocalizations {
   String get rowHeight => 'Chiều cao hàng';
 
   @override
+  String get reelTileTitle => 'The Reel';
+
+  @override
+  String get reelLayout => 'The Reel (mở Plezy)';
+
+  @override
   String get save => 'Lưu';
 
   @override

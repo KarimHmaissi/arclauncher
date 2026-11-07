@@ -203,6 +203,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rowHeight => '行高';
 
   @override
+  String get reelTileTitle => 'The Reel';
+
+  @override
+  String get reelLayout => 'The Reel（打开 Plezy）';
+
+  @override
   String get save => '保存';
 
   @override

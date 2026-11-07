@@ -173,4 +173,62 @@ void main() {
 
     expect(called, isTrue);
   });
+
+  group("Reel tile", () {
+    const channel = MethodChannel('me.efesser.flauncher/method');
+    void answer(Future<Object?>? Function(MethodCall call)? handler) =>
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, handler);
+    tearDown(() => answer(null));
+
+    test("resolveUriHandler asks for the link and returns the package", () async {
+      MethodCall? received;
+      answer((call) async {
+        received = call;
+        return "com.example.viewer";
+      });
+
+      final handler = await FLauncherChannel().resolveUriHandler("plezy://reel");
+
+      expect(received?.method, "resolveUriHandler");
+      expect(received?.arguments, "plezy://reel");
+      expect(handler, "com.example.viewer");
+    });
+
+    test("resolveUriHandler is null when nothing handles the link or the call fails", () async {
+      answer((call) async => null);
+      expect(await FLauncherChannel().resolveUriHandler("plezy://reel"), isNull);
+
+      answer((call) async => throw PlatformException(code: "boom"));
+      expect(await FLauncherChannel().resolveUriHandler("plezy://reel"), isNull);
+
+      answer(null);
+      expect(await FLauncherChannel().resolveUriHandler("plezy://reel"), isNull);
+    });
+
+    test("launchUri fires the link and reports the result", () async {
+      MethodCall? received;
+      answer((call) async {
+        received = call;
+        return true;
+      });
+
+      expect(await FLauncherChannel().launchUri("plezy://reel"), isTrue);
+      expect(received?.method, "launchUri");
+      expect(received?.arguments, "plezy://reel");
+    });
+
+    test("launchUri is false, never a throw, when the start fails", () async {
+      answer((call) async => false);
+      expect(await FLauncherChannel().launchUri("plezy://reel"), isFalse);
+
+      answer((call) async => null);
+      expect(await FLauncherChannel().launchUri("plezy://reel"), isFalse);
+
+      answer((call) async => throw PlatformException(code: "boom"));
+      expect(await FLauncherChannel().launchUri("plezy://reel"), isFalse);
+
+      answer(null);
+      expect(await FLauncherChannel().launchUri("plezy://reel"), isFalse);
+    });
+  });
 }
