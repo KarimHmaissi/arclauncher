@@ -49,6 +49,30 @@ class FLauncherChannel {
 
   Future<void> launchApp(String packageName) async => await _methodChannel.invokeMethod('launchApp', packageName);
 
+  /// Fork: the package that would open [uri] with ACTION_VIEW, or null when
+  /// no installed app handles it (or the platform side can't answer).
+  Future<String?> resolveUriHandler(String uri) async {
+    try {
+      return await _methodChannel.invokeMethod<String>('resolveUriHandler', uri);
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Fork: fires ACTION_VIEW for [uri]. False when nothing handles it or the
+  /// start failed; never throws.
+  Future<bool> launchUri(String uri) async {
+    try {
+      return await _methodChannel.invokeMethod<bool>('launchUri', uri) ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   Future<void> openSettings() async => await _methodChannel.invokeMethod('openSettings');
 
   Future<void> openAppInfo(String packageName) async => await _methodChannel.invokeMethod('openAppInfo', packageName);

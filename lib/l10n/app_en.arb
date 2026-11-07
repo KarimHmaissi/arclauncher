@@ -87,6 +87,14 @@
     "reorder": "Reorder",
     "row": "Row",
     "rowHeight": "Row height",
+    "reelTileTitle": "The Reel",
+    "@reelTileTitle": {
+        "description": "Fork: the launcher tile that opens The Reel in Plezy"
+    },
+    "reelLayout": "The Reel (opens Plezy)",
+    "@reelLayout": {
+        "description": "Fork: section layout option for the Reel tile"
+    },
     "save": "Save",
     "spacer": "Spacer",
     "spacerMaxHeightRequirement": "Must be greater than 0 and less than or equal to 500",

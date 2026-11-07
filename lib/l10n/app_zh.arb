@@ -62,6 +62,8 @@
   "reorder": "重新排序",
   "row": "行",
   "rowHeight": "行高",
+  "reelTileTitle": "The Reel",
+  "reelLayout": "The Reel（打开 Plezy）",
   "save": "保存",
   "spacer": "间隔",
   "spacerMaxHeightRequirement": "必须大于 0 且小于或等于 500",

@@ -37,6 +37,9 @@ enum CategoryType
 {
   row,
   grid,
+  // Fork: a single static tile that opens The Reel in Plezy (plezy://reel).
+  // Holds no apps. Stored by index, so it must stay after the upstream values.
+  reel,
 }
 
 class LauncherSection
