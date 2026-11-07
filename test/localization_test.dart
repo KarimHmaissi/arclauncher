@@ -66,7 +66,7 @@ void main() {
                 children: [
                   Text(strings.settings),
                   Text(strings.addToFavorites),
-                  Text(strings.redditIntervalHours(2)),
+                  Text(strings.wallpaperIntervalHours(2)),
                   Text(strings.removeFrom('Phim')),
                   Text(strings.mediaItemCount(3)),
                   Text(strings.updateAvailableBody('1.2.0', '1.1.0')),
@@ -112,7 +112,7 @@ void main() {
                   children: [
                     Text(strings.settings),
                     Text(strings.addToFavorites),
-                    Text(strings.redditIntervalHours(2)),
+                    Text(strings.wallpaperIntervalHours(2)),
                     Text(strings.removeFrom('电影')),
                     Text(strings.mediaItemCount(3)),
                     Text(strings.updateAvailableBody('1.2.0', '1.1.0')),

@@ -18,6 +18,7 @@
 
 //import 'dart:html';
 
+import 'package:flauncher/providers/photo_wallpaper_source.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -193,6 +194,147 @@ void main() async {
       await settingsService.setWatchNextHideProgramsWithoutImages(false);
       expect(settingsService.watchNextHideProgramsWithoutImages, isFalse);
       expect(sharedPreferences.getBool("watch_next_hide_programs_without_images"), isFalse);
+    });
+  });
+
+  group("4K photos", () {
+    test("defaults", () {
+      expect(settingsService.photoWallpaperEnabled, isFalse);
+      expect(settingsService.photoWallpaperSource, PhotoSource.spotlight);
+      expect(settingsService.photoWallpaperIntervalMinutes, 60);
+      expect(settingsService.photoWallpaperShowCredit, isTrue);
+      expect(settingsService.photoWallpaperCredits, isEmpty);
+      expect(settingsService.photoWallpaperSeen, isEmpty);
+    });
+
+    test("setters persist and notify", () async {
+      var notified = 0;
+      void listener() => notified++;
+      settingsService.addListener(listener);
+      addTearDown(() => settingsService.removeListener(listener));
+
+      await settingsService.setPhotoWallpaperSource(PhotoSource.bing);
+      await settingsService.setPhotoWallpaperIntervalMinutes(360);
+      await settingsService.setPhotoWallpaperShowCredit(false);
+
+      expect(settingsService.photoWallpaperSource, PhotoSource.bing);
+      expect(sharedPreferences.getString("photo_wallpaper_source"), "bing");
+      expect(settingsService.photoWallpaperIntervalMinutes, 360);
+      expect(settingsService.photoWallpaperShowCredit, isFalse);
+      expect(notified, 3);
+    });
+
+    test("4K photos and Unsplash exclude each other", () async {
+      await settingsService.setUnsplashAccessKey("abc");
+      await settingsService.setUnsplashSlideshowEnabled(true);
+      await settingsService.setPhotoWallpaperEnabled(true);
+
+      expect(settingsService.photoWallpaperEnabled, isTrue);
+      expect(settingsService.unsplashSlideshowEnabled, isFalse);
+
+      await settingsService.setUnsplashSlideshowEnabled(true);
+
+      expect(settingsService.unsplashSlideshowEnabled, isTrue);
+      expect(settingsService.photoWallpaperEnabled, isFalse);
+    });
+
+    test("credits survive a round trip and garbage reads as empty", () async {
+      await settingsService.setPhotoWallpaperCredits({
+        'sp_1': const PhotoCredit('Title', 'Place · © Someone'),
+        'bing_X': const PhotoCredit('Other', 'Somewhere (© Agency)'),
+      });
+
+      expect(settingsService.photoWallpaperCredits, {
+        'sp_1': const PhotoCredit('Title', 'Place · © Someone'),
+        'bing_X': const PhotoCredit('Other', 'Somewhere (© Agency)'),
+      });
+
+      await sharedPreferences.setString("photo_wallpaper_credits", "{not json");
+      expect(settingsService.photoWallpaperCredits, isEmpty);
+
+      await sharedPreferences.setString("photo_wallpaper_credits", '{"a": 3, "b": {"title": "t", "copyright": "c"}}');
+      expect(settingsService.photoWallpaperCredits, {'b': const PhotoCredit('t', 'c')});
+    });
+
+    test("seen ids are deduped and capped, oldest dropped", () async {
+      await settingsService.addPhotoWallpaperSeen(['a', 'b']);
+      await settingsService.addPhotoWallpaperSeen(['a']);
+      expect(settingsService.photoWallpaperSeen, ['b', 'a']);
+
+      await settingsService.addPhotoWallpaperSeen([for (var i = 0; i < 250; i++) 'id$i']);
+      final seen = settingsService.photoWallpaperSeen;
+      expect(seen, hasLength(SettingsService.photoWallpaperSeenMax));
+      expect(seen.first, 'id50');
+      expect(seen.last, 'id249');
+    });
+  });
+
+  group("migrateLegacyPrefs", () {
+    Future<void> setReddit({bool? enabled, int? interval}) async {
+      if (enabled != null) await sharedPreferences.setBool('reddit_wallpaper_enabled', enabled);
+      if (interval != null) await sharedPreferences.setInt('reddit_interval_minutes', interval);
+      await sharedPreferences.setStringList('reddit_subreddits', ['x']);
+      await sharedPreferences.setString('reddit_sort', 'hot');
+      await sharedPreferences.setString('reddit_current_title', 't');
+    }
+
+    void expectNoLegacyKeys() {
+      for (final key in SettingsService.legacyRedditKeys) {
+        expect(sharedPreferences.containsKey(key), isFalse, reason: key);
+      }
+    }
+
+    test("an enabled Reddit wallpaper becomes 4K photos with its interval", () async {
+      await sharedPreferences.setBool('unsplash_slideshow_enabled', true);
+      await setReddit(enabled: true, interval: 30);
+
+      await SettingsService.migrateLegacyPrefs(sharedPreferences);
+
+      expect(settingsService.photoWallpaperEnabled, isTrue);
+      expect(settingsService.photoWallpaperIntervalMinutes, 30);
+      expect(sharedPreferences.getBool('unsplash_slideshow_enabled'), isFalse);
+      expectNoLegacyKeys();
+    });
+
+    test("a disabled Reddit wallpaper only removes the old prefs", () async {
+      await setReddit(enabled: false, interval: 30);
+
+      await SettingsService.migrateLegacyPrefs(sharedPreferences);
+
+      expect(settingsService.photoWallpaperEnabled, isFalse);
+      expect(sharedPreferences.containsKey('photo_wallpaper_interval_minutes'), isFalse);
+      expectNoLegacyKeys();
+    });
+
+    test("an interval that is not a 4K photos choice keeps the default", () async {
+      await setReddit(enabled: true, interval: 5);
+
+      await SettingsService.migrateLegacyPrefs(sharedPreferences);
+
+      expect(settingsService.photoWallpaperEnabled, isTrue);
+      expect(settingsService.photoWallpaperIntervalMinutes, 60);
+    });
+
+    test("running twice changes nothing the second time", () async {
+      await setReddit(enabled: true, interval: 30);
+      await SettingsService.migrateLegacyPrefs(sharedPreferences);
+      await settingsService.setPhotoWallpaperEnabled(false);
+      final before = {for (final k in sharedPreferences.getKeys()) k: sharedPreferences.get(k)};
+
+      await SettingsService.migrateLegacyPrefs(sharedPreferences);
+
+      expect({for (final k in sharedPreferences.getKeys()) k: sharedPreferences.get(k)}, before);
+      expect(settingsService.photoWallpaperEnabled, isFalse);
+    });
+
+    test("an explicit 4K photos choice wins over the Reddit pref", () async {
+      await settingsService.setPhotoWallpaperEnabled(false);
+      await setReddit(enabled: true);
+
+      await SettingsService.migrateLegacyPrefs(sharedPreferences);
+
+      expect(settingsService.photoWallpaperEnabled, isFalse);
+      expectNoLegacyKeys();
     });
   });
 }

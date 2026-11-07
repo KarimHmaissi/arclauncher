@@ -27,6 +27,7 @@ import 'package:flauncher/custom_traversal_policy.dart';
 import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
+import 'package:flauncher/providers/photo_wallpaper_source.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/wallpaper_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
@@ -167,7 +168,7 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
             child: Consumer3<WallpaperService, SettingsService, WatchNextService>(
               builder: (_, wallpaperService, settingsService, watchNextService, __) {
                 final author = wallpaperService.slideshowAuthor;
-                final redditCredit = wallpaperService.redditWallpaperCredit;
+                final photoCredit = wallpaperService.photoWallpaperCredit;
                 final isBigPicture = settingsService.showWatchNextSection && settingsService.watchNextBigPictureMode;
                 final activeItem = isBigPicture ? watchNextService.activeHeroItem : null;
                 final heroUri = isBigPicture ? watchNextService.getPosterUriForItem(activeItem) : null;
@@ -218,18 +219,15 @@ class _FLauncherState extends State<FLauncher> with WidgetsBindingObserver {
                             )
                           : const SizedBox.shrink(key: ValueKey('no_hero_bg')),
                     ),
-                    if (redditCredit != null && !hasHeroBackdrop)
+                    if (photoCredit != null && !hasHeroBackdrop)
                       Positioned(
                         right: 24,
                         top: 64,
                         child: Material(
                           type: MaterialType.transparency,
-                          child: Text(
-                            redditCredit,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.white70,
-                              shadows: const [Shadow(blurRadius: 4)],
-                            ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 520),
+                            child: _PhotoCreditText(photoCredit),
                           ),
                         ),
                       )
@@ -1021,3 +1019,39 @@ class _CinematicScrimPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+/// Title and copyright of the 4K photo on screen, top right.
+class _PhotoCreditText extends StatelessWidget {
+  final PhotoCredit credit;
+
+  const _PhotoCreditText(this.credit);
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall;
+    const shadows = [Shadow(blurRadius: 4)];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          credit.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.end,
+          style: style?.copyWith(color: Colors.white70, shadows: shadows),
+        ),
+        Text(
+          credit.copyright,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.end,
+          style: style?.copyWith(
+            color: Colors.white54,
+            fontSize: (style.fontSize ?? 12) * 0.85,
+            shadows: shadows,
+          ),
+        ),
+      ],
+    );
+  }
+}

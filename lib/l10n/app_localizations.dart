@@ -1046,155 +1046,95 @@ abstract class AppLocalizations {
   /// **'Unlimited'**
   String get watchNextMaxItemsUnlimited;
 
-  /// No description provided for @redditWallpaper.
+  /// No description provided for @photoWallpaper.
   ///
   /// In en, this message translates to:
-  /// **'Reddit wallpaper'**
-  String get redditWallpaper;
+  /// **'4K photos'**
+  String get photoWallpaper;
 
-  /// No description provided for @redditWallpaperEnable.
+  /// No description provided for @photoWallpaperEnable.
   ///
   /// In en, this message translates to:
-  /// **'Show Reddit wallpapers'**
-  String get redditWallpaperEnable;
+  /// **'Show 4K photos'**
+  String get photoWallpaperEnable;
 
-  /// No description provided for @redditSubreddits.
+  /// No description provided for @photoWallpaperSource.
   ///
   /// In en, this message translates to:
-  /// **'Subreddits'**
-  String get redditSubreddits;
+  /// **'Source'**
+  String get photoWallpaperSource;
 
-  /// No description provided for @redditSort.
+  /// No description provided for @photoWallpaperSourceSpotlight.
   ///
   /// In en, this message translates to:
-  /// **'Sort by'**
-  String get redditSort;
+  /// **'Varied photos'**
+  String get photoWallpaperSourceSpotlight;
 
-  /// No description provided for @redditSortHot.
+  /// No description provided for @photoWallpaperSourceBing.
   ///
   /// In en, this message translates to:
-  /// **'Hot'**
-  String get redditSortHot;
+  /// **'Photo of the day'**
+  String get photoWallpaperSourceBing;
 
-  /// No description provided for @redditSortTopDay.
+  /// No description provided for @photoWallpaperShowCredit.
   ///
   /// In en, this message translates to:
-  /// **'Top (Today)'**
-  String get redditSortTopDay;
+  /// **'Show photo credit'**
+  String get photoWallpaperShowCredit;
 
-  /// No description provided for @redditSortTopWeek.
+  /// No description provided for @photoWallpaperChangeNow.
   ///
   /// In en, this message translates to:
-  /// **'Top (This week)'**
-  String get redditSortTopWeek;
+  /// **'Change photo now'**
+  String get photoWallpaperChangeNow;
 
-  /// No description provided for @redditSortTopMonth.
+  /// No description provided for @photoWallpaperUpdated.
   ///
   /// In en, this message translates to:
-  /// **'Top (This month)'**
-  String get redditSortTopMonth;
+  /// **'Photo changed'**
+  String get photoWallpaperUpdated;
 
-  /// No description provided for @redditSortTopAll.
+  /// No description provided for @photoWallpaperFailed.
   ///
   /// In en, this message translates to:
-  /// **'Top (All time)'**
-  String get redditSortTopAll;
+  /// **'Couldn\'t get a new photo. Check your connection.'**
+  String get photoWallpaperFailed;
 
-  /// No description provided for @redditSortNew.
-  ///
-  /// In en, this message translates to:
-  /// **'New'**
-  String get redditSortNew;
-
-  /// No description provided for @redditInterval.
+  /// No description provided for @wallpaperInterval.
   ///
   /// In en, this message translates to:
   /// **'Change every'**
-  String get redditInterval;
+  String get wallpaperInterval;
 
-  /// No description provided for @redditIntervalMinutes.
+  /// No description provided for @wallpaperIntervalMinutes.
   ///
   /// In en, this message translates to:
   /// **'{minutes} min'**
-  String redditIntervalMinutes(int minutes);
+  String wallpaperIntervalMinutes(int minutes);
 
-  /// No description provided for @redditInterval1Hour.
+  /// No description provided for @wallpaperInterval1Hour.
   ///
   /// In en, this message translates to:
   /// **'1 hour'**
-  String get redditInterval1Hour;
+  String get wallpaperInterval1Hour;
 
-  /// No description provided for @redditIntervalHours.
+  /// No description provided for @wallpaperIntervalHours.
   ///
   /// In en, this message translates to:
   /// **'{hours} hours'**
-  String redditIntervalHours(int hours);
+  String wallpaperIntervalHours(int hours);
 
-  /// No description provided for @redditInterval1Day.
+  /// No description provided for @wallpaperInterval1Day.
   ///
   /// In en, this message translates to:
   /// **'1 day'**
-  String get redditInterval1Day;
+  String get wallpaperInterval1Day;
 
-  /// No description provided for @redditIntervalDays.
+  /// No description provided for @wallpaperIntervalDays.
   ///
   /// In en, this message translates to:
   /// **'{days} days'**
-  String redditIntervalDays(int days);
-
-  /// No description provided for @redditClientId.
-  ///
-  /// In en, this message translates to:
-  /// **'Reddit Client ID (Optional)'**
-  String get redditClientId;
-
-  /// No description provided for @redditClientIdHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'Optional. Create an installed app at reddit.com/prefs/apps and paste its ID if your network requires it.'**
-  String get redditClientIdHelp;
-
-  /// No description provided for @redditChangeNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Change wallpaper now'**
-  String get redditChangeNow;
-
-  /// No description provided for @redditAddSubreddit.
-  ///
-  /// In en, this message translates to:
-  /// **'Add custom subreddit'**
-  String get redditAddSubreddit;
-
-  /// No description provided for @redditSubredditName.
-  ///
-  /// In en, this message translates to:
-  /// **'Subreddit name (without r/)'**
-  String get redditSubredditName;
-
-  /// No description provided for @redditSubredditAdded.
-  ///
-  /// In en, this message translates to:
-  /// **'Subreddit added'**
-  String get redditSubredditAdded;
-
-  /// No description provided for @redditSubredditInvalid.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter a valid subreddit name'**
-  String get redditSubredditInvalid;
-
-  /// No description provided for @redditWallpaperUpdated.
-  ///
-  /// In en, this message translates to:
-  /// **'Wallpaper updated successfully'**
-  String get redditWallpaperUpdated;
-
-  /// No description provided for @redditWallpaperFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to fetch wallpaper. If this persists, configure a Reddit Client ID in settings.'**
-  String get redditWallpaperFailed;
+  String wallpaperIntervalDays(int days);
 
   /// No description provided for @addToFavorites.
   ///

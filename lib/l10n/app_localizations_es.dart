@@ -521,89 +521,56 @@ class AppLocalizationsEs extends AppLocalizations {
   String get watchNextMaxItemsUnlimited => 'Ilimitado';
 
   @override
-  String get redditWallpaper => 'Fondo de Reddit';
+  String get photoWallpaper => 'Fotos 4K';
 
   @override
-  String get redditWallpaperEnable => 'Mostrar fotos de Reddit';
+  String get photoWallpaperEnable => 'Mostrar fotos 4K';
 
   @override
-  String get redditSubreddits => 'Subreddits';
+  String get photoWallpaperSource => 'Fuente';
 
   @override
-  String get redditSort => 'Ordenar por';
+  String get photoWallpaperSourceSpotlight => 'Fotos variadas';
 
   @override
-  String get redditSortHot => 'Popular';
+  String get photoWallpaperSourceBing => 'Foto del día';
 
   @override
-  String get redditSortTopDay => 'Destacados (Hoy)';
+  String get photoWallpaperShowCredit => 'Mostrar créditos de la foto';
 
   @override
-  String get redditSortTopWeek => 'Destacados (Semana)';
+  String get photoWallpaperChangeNow => 'Cambiar foto ahora';
 
   @override
-  String get redditSortTopMonth => 'Destacados (Mes)';
+  String get photoWallpaperUpdated => 'Foto cambiada';
 
   @override
-  String get redditSortTopAll => 'Destacados (Siempre)';
+  String get photoWallpaperFailed =>
+      'No se pudo obtener una foto nueva. Comprueba la conexión.';
 
   @override
-  String get redditSortNew => 'Nuevos';
+  String get wallpaperInterval => 'Cambiar cada';
 
   @override
-  String get redditInterval => 'Cambiar cada';
-
-  @override
-  String redditIntervalMinutes(int minutes) {
+  String wallpaperIntervalMinutes(int minutes) {
     return '$minutes min';
   }
 
   @override
-  String get redditInterval1Hour => '1 hora';
+  String get wallpaperInterval1Hour => '1 hora';
 
   @override
-  String redditIntervalHours(int hours) {
+  String wallpaperIntervalHours(int hours) {
     return '$hours horas';
   }
 
   @override
-  String get redditInterval1Day => '1 día';
+  String get wallpaperInterval1Day => '1 día';
 
   @override
-  String redditIntervalDays(int days) {
+  String wallpaperIntervalDays(int days) {
     return '$days días';
   }
-
-  @override
-  String get redditClientId => 'ID de cliente de Reddit (opcional)';
-
-  @override
-  String get redditClientIdHelp =>
-      'Opcional. Crea una app instalada en reddit.com/prefs/apps y pega su ID.';
-
-  @override
-  String get redditChangeNow => 'Cambiar fondo ahora';
-
-  @override
-  String get redditAddSubreddit => 'Añadir subreddit personalizado';
-
-  @override
-  String get redditSubredditName => 'Nombre del subreddit (sin r/)';
-
-  @override
-  String get redditSubredditAdded => 'Subreddit añadido';
-
-  @override
-  String get redditSubredditInvalid =>
-      'Introduce un nombre de subreddit válido';
-
-  @override
-  String get redditWallpaperUpdated =>
-      'Fondo de pantalla actualizado con éxito';
-
-  @override
-  String get redditWallpaperFailed =>
-      'Error al obtener el fondo. Si persiste, añade un ID de cliente de Reddit en los ajustes.';
 
   @override
   String get addToFavorites => 'Add to Fav';

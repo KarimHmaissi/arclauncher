@@ -15,14 +15,15 @@ import 'package:flauncher/flauncher_channel.dart' as _i12;
 import 'package:flauncher/gradients.dart' as _i2;
 import 'package:flauncher/models/app.dart' as _i17;
 import 'package:flauncher/models/category.dart' as _i3;
-import 'package:flauncher/models/watch_next_item.dart' as _i21;
+import 'package:flauncher/models/watch_next_item.dart' as _i22;
 import 'package:flauncher/providers/apps_service.dart' as _i16;
+import 'package:flauncher/providers/photo_wallpaper_source.dart' as _i20;
 import 'package:flauncher/providers/settings_service.dart' as _i18;
 import 'package:flauncher/providers/wallpaper_service.dart' as _i14;
-import 'package:flauncher/providers/watch_next_service.dart' as _i20;
+import 'package:flauncher/providers/watch_next_service.dart' as _i21;
 import 'package:flutter/cupertino.dart' as _i10;
 import 'package:flutter/services.dart' as _i11;
-import 'package:image_picker/image_picker.dart' as _i22;
+import 'package:image_picker/image_picker.dart' as _i23;
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart'
     as _i5;
 import 'package:mockito/mockito.dart' as _i1;
@@ -569,6 +570,16 @@ class MockFLauncherChannel extends _i1.Mock implements _i12.FLauncherChannel {
       ) as _i9.Future<bool>);
 
   @override
+  _i9.Future<bool> areMediaPermissionsAvailable() => (super.noSuchMethod(
+        Invocation.method(
+          #areMediaPermissionsAvailable,
+          [],
+        ),
+        returnValue: _i9.Future<bool>.value(false),
+        returnValueForMissingStub: _i9.Future<bool>.value(false),
+      ) as _i9.Future<bool>);
+
+  @override
   _i9.Future<void> requestMediaPermissions() => (super.noSuchMethod(
         Invocation.method(
           #requestMediaPermissions,
@@ -638,6 +649,16 @@ class MockFLauncherChannel extends _i1.Mock implements _i12.FLauncherChannel {
         returnValue: _i9.Future<void>.value(),
         returnValueForMissingStub: _i9.Future<void>.value(),
       ) as _i9.Future<void>);
+
+  @override
+  void setHomePressedHandler(void Function()? onHomePressed) =>
+      super.noSuchMethod(
+        Invocation.method(
+          #setHomePressedHandler,
+          [onHomePressed],
+        ),
+        returnValueForMissingStub: null,
+      );
 
   @override
   void addAppsChangedListener(void Function(Map<String, dynamic>)? listener) =>
@@ -774,9 +795,9 @@ class MockWallpaperService extends _i1.Mock implements _i14.WallpaperService {
       );
 
   @override
-  _i9.Future<void> advanceRedditWallpaper() => (super.noSuchMethod(
+  _i9.Future<void> advancePhotoWallpaper() => (super.noSuchMethod(
         Invocation.method(
-          #advanceRedditWallpaper,
+          #advancePhotoWallpaper,
           [],
         ),
         returnValue: _i9.Future<void>.value(),
@@ -1434,6 +1455,17 @@ class MockAppsService extends _i1.Mock implements _i16.AppsService {
       ) as _i9.Future<void>);
 
   @override
+  _i9.Future<void> deleteCategory(_i3.Category? category) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #deleteCategory,
+          [category],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
   void moveSectionInMemory(
     int? oldIndex,
     int? newIndex,
@@ -1477,6 +1509,23 @@ class MockAppsService extends _i1.Mock implements _i16.AppsService {
       ) as _i9.Future<void>);
 
   @override
+  _i9.Future<void> moveCategory(
+    int? oldIndex,
+    int? newIndex,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #moveCategory,
+          [
+            oldIndex,
+            newIndex,
+          ],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
   _i9.Future<void> hideApplication(_i17.App? application) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -1492,6 +1541,17 @@ class MockAppsService extends _i1.Mock implements _i16.AppsService {
       (super.noSuchMethod(
         Invocation.method(
           #showApplication,
+          [application],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> unHideApplication(_i17.App? application) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #unHideApplication,
           [application],
         ),
         returnValue: _i9.Future<void>.value(),
@@ -1777,6 +1837,13 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as bool);
 
   @override
+  bool get startOnContinueWatching => (super.noSuchMethod(
+        Invocation.getter(#startOnContinueWatching),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
   bool get watchNextHideProgramsWithoutImages => (super.noSuchMethod(
         Invocation.getter(#watchNextHideProgramsWithoutImages),
         returnValue: false,
@@ -1887,64 +1954,47 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as List<String>);
 
   @override
-  bool get redditWallpaperEnabled => (super.noSuchMethod(
-        Invocation.getter(#redditWallpaperEnabled),
+  bool get photoWallpaperEnabled => (super.noSuchMethod(
+        Invocation.getter(#photoWallpaperEnabled),
         returnValue: false,
         returnValueForMissingStub: false,
       ) as bool);
 
   @override
-  int get redditIntervalMinutes => (super.noSuchMethod(
-        Invocation.getter(#redditIntervalMinutes),
+  _i20.PhotoSource get photoWallpaperSource => (super.noSuchMethod(
+        Invocation.getter(#photoWallpaperSource),
+        returnValue: _i20.PhotoSource.spotlight,
+        returnValueForMissingStub: _i20.PhotoSource.spotlight,
+      ) as _i20.PhotoSource);
+
+  @override
+  int get photoWallpaperIntervalMinutes => (super.noSuchMethod(
+        Invocation.getter(#photoWallpaperIntervalMinutes),
         returnValue: 0,
         returnValueForMissingStub: 0,
       ) as int);
 
   @override
-  List<String> get redditSubreddits => (super.noSuchMethod(
-        Invocation.getter(#redditSubreddits),
+  bool get photoWallpaperShowCredit => (super.noSuchMethod(
+        Invocation.getter(#photoWallpaperShowCredit),
+        returnValue: false,
+        returnValueForMissingStub: false,
+      ) as bool);
+
+  @override
+  Map<String, _i20.PhotoCredit> get photoWallpaperCredits =>
+      (super.noSuchMethod(
+        Invocation.getter(#photoWallpaperCredits),
+        returnValue: <String, _i20.PhotoCredit>{},
+        returnValueForMissingStub: <String, _i20.PhotoCredit>{},
+      ) as Map<String, _i20.PhotoCredit>);
+
+  @override
+  List<String> get photoWallpaperSeen => (super.noSuchMethod(
+        Invocation.getter(#photoWallpaperSeen),
         returnValue: <String>[],
         returnValueForMissingStub: <String>[],
       ) as List<String>);
-
-  @override
-  String get redditSort => (super.noSuchMethod(
-        Invocation.getter(#redditSort),
-        returnValue: _i19.dummyValue<String>(
-          this,
-          Invocation.getter(#redditSort),
-        ),
-        returnValueForMissingStub: _i19.dummyValue<String>(
-          this,
-          Invocation.getter(#redditSort),
-        ),
-      ) as String);
-
-  @override
-  String get redditClientId => (super.noSuchMethod(
-        Invocation.getter(#redditClientId),
-        returnValue: _i19.dummyValue<String>(
-          this,
-          Invocation.getter(#redditClientId),
-        ),
-        returnValueForMissingStub: _i19.dummyValue<String>(
-          this,
-          Invocation.getter(#redditClientId),
-        ),
-      ) as String);
-
-  @override
-  String get redditClientSecret => (super.noSuchMethod(
-        Invocation.getter(#redditClientSecret),
-        returnValue: _i19.dummyValue<String>(
-          this,
-          Invocation.getter(#redditClientSecret),
-        ),
-        returnValueForMissingStub: _i19.dummyValue<String>(
-          this,
-          Invocation.getter(#redditClientSecret),
-        ),
-      ) as String);
 
   @override
   bool get hasListeners => (super.noSuchMethod(
@@ -2196,6 +2246,17 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as _i9.Future<void>);
 
   @override
+  _i9.Future<void> setStartOnContinueWatching(bool? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #setStartOnContinueWatching,
+          [value],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
   _i9.Future<void> setWatchNextHideProgramsWithoutImages(bool? value) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -2350,10 +2411,10 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as _i9.Future<void>);
 
   @override
-  _i9.Future<void> setRedditWallpaperEnabled(bool? enabled) =>
+  _i9.Future<void> setPhotoWallpaperEnabled(bool? enabled) =>
       (super.noSuchMethod(
         Invocation.method(
-          #setRedditWallpaperEnabled,
+          #setPhotoWallpaperEnabled,
           [enabled],
         ),
         returnValue: _i9.Future<void>.value(),
@@ -2361,10 +2422,21 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as _i9.Future<void>);
 
   @override
-  _i9.Future<void> setRedditIntervalMinutes(int? minutes) =>
+  _i9.Future<void> setPhotoWallpaperSource(_i20.PhotoSource? source) =>
       (super.noSuchMethod(
         Invocation.method(
-          #setRedditIntervalMinutes,
+          #setPhotoWallpaperSource,
+          [source],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> setPhotoWallpaperIntervalMinutes(int? minutes) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #setPhotoWallpaperIntervalMinutes,
           [minutes],
         ),
         returnValue: _i9.Future<void>.value(),
@@ -2372,61 +2444,34 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
       ) as _i9.Future<void>);
 
   @override
-  _i9.Future<void> setRedditSubreddits(List<String>? subreddits) =>
+  _i9.Future<void> setPhotoWallpaperShowCredit(bool? show) =>
       (super.noSuchMethod(
         Invocation.method(
-          #setRedditSubreddits,
-          [subreddits],
+          #setPhotoWallpaperShowCredit,
+          [show],
         ),
         returnValue: _i9.Future<void>.value(),
         returnValueForMissingStub: _i9.Future<void>.value(),
       ) as _i9.Future<void>);
 
   @override
-  _i9.Future<void> setRedditSort(String? sort) => (super.noSuchMethod(
-        Invocation.method(
-          #setRedditSort,
-          [sort],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<void> setRedditClientId(String? clientId) => (super.noSuchMethod(
-        Invocation.method(
-          #setRedditClientId,
-          [clientId],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<void> setRedditClientSecret(String? secret) => (super.noSuchMethod(
-        Invocation.method(
-          #setRedditClientSecret,
-          [secret],
-        ),
-        returnValue: _i9.Future<void>.value(),
-        returnValueForMissingStub: _i9.Future<void>.value(),
-      ) as _i9.Future<void>);
-
-  @override
-  _i9.Future<void> setRedditWallpaperInfo({
-    required String? title,
-    required String? author,
-    required String? subreddit,
-  }) =>
+  _i9.Future<void> setPhotoWallpaperCredits(
+          Map<String, _i20.PhotoCredit>? credits) =>
       (super.noSuchMethod(
         Invocation.method(
-          #setRedditWallpaperInfo,
-          [],
-          {
-            #title: title,
-            #author: author,
-            #subreddit: subreddit,
-          },
+          #setPhotoWallpaperCredits,
+          [credits],
+        ),
+        returnValue: _i9.Future<void>.value(),
+        returnValueForMissingStub: _i9.Future<void>.value(),
+      ) as _i9.Future<void>);
+
+  @override
+  _i9.Future<void> addPhotoWallpaperSeen(Iterable<String>? ids) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #addPhotoWallpaperSeen,
+          [ids],
         ),
         returnValue: _i9.Future<void>.value(),
         returnValueForMissingStub: _i9.Future<void>.value(),
@@ -2472,13 +2517,13 @@ class MockSettingsService extends _i1.Mock implements _i18.SettingsService {
 /// A class which mocks [WatchNextService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockWatchNextService extends _i1.Mock implements _i20.WatchNextService {
+class MockWatchNextService extends _i1.Mock implements _i21.WatchNextService {
   @override
-  List<_i21.WatchNextItem> get items => (super.noSuchMethod(
+  List<_i22.WatchNextItem> get items => (super.noSuchMethod(
         Invocation.getter(#items),
-        returnValue: <_i21.WatchNextItem>[],
-        returnValueForMissingStub: <_i21.WatchNextItem>[],
-      ) as List<_i21.WatchNextItem>);
+        returnValue: <_i22.WatchNextItem>[],
+        returnValueForMissingStub: <_i22.WatchNextItem>[],
+      ) as List<_i22.WatchNextItem>);
 
   @override
   bool get isLoading => (super.noSuchMethod(
@@ -2530,7 +2575,7 @@ class MockWatchNextService extends _i1.Mock implements _i20.WatchNextService {
       ) as bool);
 
   @override
-  bool itemHasImage(_i21.WatchNextItem? item) => (super.noSuchMethod(
+  bool itemHasImage(_i22.WatchNextItem? item) => (super.noSuchMethod(
         Invocation.method(
           #itemHasImage,
           [item],
@@ -2645,7 +2690,7 @@ class MockWatchNextService extends _i1.Mock implements _i20.WatchNextService {
       ) as bool);
 
   @override
-  _i9.Future<void> launchItem(_i21.WatchNextItem? item) => (super.noSuchMethod(
+  _i9.Future<void> launchItem(_i22.WatchNextItem? item) => (super.noSuchMethod(
         Invocation.method(
           #launchItem,
           [item],
@@ -2685,7 +2730,7 @@ class MockWatchNextService extends _i1.Mock implements _i20.WatchNextService {
 /// A class which mocks [ImagePicker].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockImagePicker extends _i1.Mock implements _i22.ImagePicker {
+class MockImagePicker extends _i1.Mock implements _i23.ImagePicker {
   @override
   _i9.Future<_i5.XFile?> pickImage({
     required _i5.ImageSource? source,

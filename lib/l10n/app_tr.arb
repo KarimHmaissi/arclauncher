@@ -152,50 +152,40 @@
     "watchNextMaxItems": "Maksimum program sayısı",
     "watchNextMaxItemsDescription": "Sıradakiler bölümünde gösterilen program sayısını sınırla",
     "watchNextMaxItemsUnlimited": "Sınırsız",
-    "redditWallpaper": "Reddit duvar kağıdı",
-    "redditWallpaperEnable": "Reddit fotoğraflarını göster",
-    "redditSubreddits": "Subreddit'ler",
-    "redditSort": "Sırala",
-    "redditSortHot": "Popüler",
-    "redditSortTopDay": "En İyiler (Bugün)",
-    "redditSortTopWeek": "En İyiler (Bu Hafta)",
-    "redditSortTopMonth": "En İyiler (Bu Ay)",
-    "redditSortTopAll": "En İyiler (Tüm Zamanlar)",
-    "redditSortNew": "Yeni",
-    "redditInterval": "Değiştirme sıklığı",
-    "redditIntervalMinutes": "{minutes} dk",
-    "@redditIntervalMinutes": {
+    "photoWallpaper": "4K fotoğraflar",
+    "photoWallpaperEnable": "4K fotoğrafları göster",
+    "photoWallpaperSource": "Kaynak",
+    "photoWallpaperSourceSpotlight": "Çeşitli fotoğraflar",
+    "photoWallpaperSourceBing": "Günün fotoğrafı",
+    "photoWallpaperShowCredit": "Fotoğraf bilgisini göster",
+    "photoWallpaperChangeNow": "Fotoğrafı şimdi değiştir",
+    "photoWallpaperUpdated": "Fotoğraf değiştirildi",
+    "photoWallpaperFailed": "Yeni fotoğraf alınamadı. Bağlantınızı kontrol edin.",
+    "wallpaperInterval": "Değiştirme sıklığı",
+    "wallpaperIntervalMinutes": "{minutes} dk",
+    "@wallpaperIntervalMinutes": {
         "placeholders": {
             "minutes": {
                 "type": "int"
             }
         }
     },
-    "redditInterval1Hour": "1 saat",
-    "redditIntervalHours": "{hours} saat",
-    "@redditIntervalHours": {
+    "wallpaperInterval1Hour": "1 saat",
+    "wallpaperIntervalHours": "{hours} saat",
+    "@wallpaperIntervalHours": {
         "placeholders": {
             "hours": {
                 "type": "int"
             }
         }
     },
-    "redditInterval1Day": "1 gün",
-    "redditIntervalDays": "{days} gün",
-    "@redditIntervalDays": {
+    "wallpaperInterval1Day": "1 gün",
+    "wallpaperIntervalDays": "{days} gün",
+    "@wallpaperIntervalDays": {
         "placeholders": {
             "days": {
                 "type": "int"
             }
         }
-    },
-    "redditClientId": "Reddit İstemci Kimliği (İsteğe bağlı)",
-    "redditClientIdHelp": "İsteğe bağlı. reddit.com/prefs/apps adresinden yüklü uygulama oluşturup kimliğini yapıştırın.",
-    "redditChangeNow": "Duvar kağıdını şimdi değiştir",
-    "redditAddSubreddit": "Özel subreddit ekle",
-    "redditSubredditName": "Subreddit adı (r/ olmadan)",
-    "redditSubredditAdded": "Subreddit eklendi",
-    "redditSubredditInvalid": "Lütfen geçerli bir subreddit adı girin",
-    "redditWallpaperUpdated": "Duvar kağıdı başarıyla güncellendi",
-    "redditWallpaperFailed": "Duvar kağıdı alınamadı. Sorun devam ederse ayarlardan bir Reddit İstemci Kimliği girin."
+    }
 }

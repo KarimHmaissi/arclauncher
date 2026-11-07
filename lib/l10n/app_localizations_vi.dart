@@ -517,88 +517,56 @@ class AppLocalizationsVi extends AppLocalizations {
   String get watchNextMaxItemsUnlimited => 'Không giới hạn';
 
   @override
-  String get redditWallpaper => 'Hình nền Reddit';
+  String get photoWallpaper => 'Ảnh 4K';
 
   @override
-  String get redditWallpaperEnable => 'Hiện hình nền từ Reddit';
+  String get photoWallpaperEnable => 'Hiển thị ảnh 4K';
 
   @override
-  String get redditSubreddits => 'Cộng đồng Reddit';
+  String get photoWallpaperSource => 'Nguồn';
 
   @override
-  String get redditSort => 'Sắp xếp theo';
+  String get photoWallpaperSourceSpotlight => 'Ảnh đa dạng';
 
   @override
-  String get redditSortHot => 'Nổi bật';
+  String get photoWallpaperSourceBing => 'Ảnh trong ngày';
 
   @override
-  String get redditSortTopDay => 'Hàng đầu hôm nay';
+  String get photoWallpaperShowCredit => 'Hiển thị nguồn ảnh';
 
   @override
-  String get redditSortTopWeek => 'Hàng đầu tuần này';
+  String get photoWallpaperChangeNow => 'Đổi ảnh ngay';
 
   @override
-  String get redditSortTopMonth => 'Hàng đầu tháng này';
+  String get photoWallpaperUpdated => 'Đã đổi ảnh';
 
   @override
-  String get redditSortTopAll => 'Hàng đầu từ trước đến nay';
+  String get photoWallpaperFailed =>
+      'Không tải được ảnh mới. Hãy kiểm tra kết nối.';
 
   @override
-  String get redditSortNew => 'Mới nhất';
+  String get wallpaperInterval => 'Đổi ảnh sau mỗi';
 
   @override
-  String get redditInterval => 'Đổi ảnh sau mỗi';
-
-  @override
-  String redditIntervalMinutes(int minutes) {
+  String wallpaperIntervalMinutes(int minutes) {
     return '$minutes phút';
   }
 
   @override
-  String get redditInterval1Hour => '1 giờ';
+  String get wallpaperInterval1Hour => '1 giờ';
 
   @override
-  String redditIntervalHours(int hours) {
+  String wallpaperIntervalHours(int hours) {
     return '$hours giờ';
   }
 
   @override
-  String get redditInterval1Day => '1 ngày';
+  String get wallpaperInterval1Day => '1 ngày';
 
   @override
-  String redditIntervalDays(int days) {
+  String wallpaperIntervalDays(int days) {
     return '$days ngày';
   }
-
-  @override
-  String get redditClientId => 'Mã ứng dụng Reddit (không bắt buộc)';
-
-  @override
-  String get redditClientIdHelp =>
-      'Không bắt buộc. Nếu mạng của bạn yêu cầu, hãy tạo ứng dụng loại installed app tại reddit.com/prefs/apps rồi dán mã ứng dụng vào đây.';
-
-  @override
-  String get redditChangeNow => 'Đổi hình nền ngay';
-
-  @override
-  String get redditAddSubreddit => 'Thêm cộng đồng Reddit';
-
-  @override
-  String get redditSubredditName => 'Tên cộng đồng (không có r/)';
-
-  @override
-  String get redditSubredditAdded => 'Đã thêm cộng đồng Reddit';
-
-  @override
-  String get redditSubredditInvalid =>
-      'Vui lòng nhập tên cộng đồng Reddit hợp lệ';
-
-  @override
-  String get redditWallpaperUpdated => 'Đã đổi hình nền';
-
-  @override
-  String get redditWallpaperFailed =>
-      'Không thể tải hình nền. Nếu lỗi tiếp diễn, hãy thiết lập mã ứng dụng Reddit trong phần cài đặt.';
 
   @override
   String get addToFavorites => 'Thêm vào yêu thích';

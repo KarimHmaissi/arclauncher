@@ -24,6 +24,7 @@ import 'package:flauncher/l10n/app_localizations.dart';
 import 'package:flauncher/providers/apps_service.dart';
 import 'package:flauncher/providers/launcher_state.dart';
 import 'package:flauncher/providers/network_service.dart';
+import 'package:flauncher/providers/photo_wallpaper_source.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/wallpaper_service.dart';
 import 'package:flauncher/providers/watch_next_service.dart';
@@ -109,6 +110,18 @@ void main() {
     await _pumpWidgetWithProviders(tester, mkWallpaperService(false), appsService, mkSettingsService());
 
     expect(find.byKey(Key("background")), findsOneWidget);
+  });
+
+  testWidgets("Home page shows the 4K photo title and credit", (tester) async {
+    final appsService = mkAppService();
+    when(appsService.categoriesWithApps).thenReturn([]);
+    final wallpaperService = mkWallpaperService();
+    when(wallpaperService.photoWallpaperCredit).thenReturn(const PhotoCredit('Photo title', 'Place · © Photographer'));
+
+    await _pumpWidgetWithProviders(tester, wallpaperService, appsService, mkSettingsService());
+
+    expect(find.text('Photo title'), findsOneWidget);
+    expect(find.text('Place · © Photographer'), findsOneWidget);
   });
 
   testWidgets("Pressing select on settings icon opens SettingsPanel", (tester) async {
@@ -512,7 +525,7 @@ WallpaperService mkWallpaperService([bool wallpaper = true]) {
   when(wallpaperService.wallpaperVideoFile).thenReturn(null);
   when(wallpaperService.wallpaperRevision).thenReturn(0);
   when(wallpaperService.slideshowAuthor).thenReturn(null);
-  when(wallpaperService.redditWallpaperCredit).thenReturn(null);
+  when(wallpaperService.photoWallpaperCredit).thenReturn(null);
   return wallpaperService;
 }
 

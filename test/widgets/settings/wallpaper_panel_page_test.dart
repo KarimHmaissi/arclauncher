@@ -28,7 +28,7 @@ import 'package:provider/provider.dart';
 import '../../mocks.mocks.dart';
 
 void main() {
-  testWidgets("renders Unsplash slideshow tile below wallpaper options", (tester) async {
+  testWidgets("renders Unsplash slideshow and 4K photos tiles below wallpaper options", (tester) async {
     final settingsService = MockSettingsService();
     final wallpaperService = MockWallpaperService();
     when(settingsService.timeBasedWallpaperEnabled).thenReturn(false);
@@ -49,14 +49,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Unsplash slideshow'), findsOneWidget);
-    expect(find.text('Reddit wallpaper'), findsOneWidget);
+    expect(find.text('4K photos'), findsOneWidget);
+    expect(find.text('Reddit wallpaper'), findsNothing);
     expect(find.text('Gradient'), findsOneWidget);
 
     final gradientTop = tester.getTopLeft(find.text('Gradient')).dy;
     final unsplashTop = tester.getTopLeft(find.text('Unsplash slideshow')).dy;
-    final redditTop = tester.getTopLeft(find.text('Reddit wallpaper')).dy;
+    final photosTop = tester.getTopLeft(find.text('4K photos')).dy;
 
     expect(unsplashTop, greaterThan(gradientTop));
-    expect(redditTop, greaterThan(unsplashTop));
+    expect(photosTop, greaterThan(unsplashTop));
   });
 }

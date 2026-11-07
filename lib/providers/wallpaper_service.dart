@@ -23,7 +23,7 @@ import 'dart:typed_data';
 
 import 'package:flauncher/flauncher_channel.dart';
 import 'package:flauncher/gradients.dart';
-import 'package:flauncher/providers/reddit_slideshow.dart';
+import 'package:flauncher/providers/photo_wallpaper_source.dart';
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flauncher/providers/unsplash_slideshow.dart';
 import 'package:flutter/cupertino.dart';
@@ -48,29 +48,42 @@ class WallpaperService extends ChangeNotifier {
   final Random _random = Random();
   File? _slideshowFile;
 
-  late RedditSlideshow _redditSlideshow;
-  Timer? _redditTimer;
-  Timer? _redditDebounce;
-  File? _redditFile;
+  final PhotoWallpaperSource Function(Directory) _photoSourceFactory;
+  late PhotoWallpaperSource _photoSource;
+  Timer? _photoTimer;
+  Timer? _photoDebounce;
+  Timer? _photoRetry;
+  Timer? _photoFillTimer;
+  File? _photoFile;
 
-  static const Duration redditConfigDebounce = Duration(seconds: 3);
+  /// Photo ids shown as the home wallpaper this session, least recent first.
+  final List<String> _photoShown = [];
+  static const int photoShownMax = 200;
 
-  /// Credit to display while the Reddit wallpaper is on screen.
-  String? get redditWallpaperCredit {
-    if (!_settingsService.redditWallpaperEnabled || _redditFile == null) return null;
-    final sub = _settingsService.redditCurrentSubreddit;
-    final author = _settingsService.redditCurrentAuthor;
-    if (sub != null && sub.isNotEmpty) {
-      if (author != null && author.isNotEmpty) {
-        return "r/$sub • u/$author";
-      }
-      return "r/$sub";
+  /// When the pool was last topped up, to keep downloads slow and polite.
+  DateTime? _lastPhotoFill;
+
+  /// The source the home wallpaper was last set up for.
+  PhotoSource? _photoSourceShown;
+
+  static const Duration photoConfigDebounce = Duration(seconds: 3);
+
+  /// After a failed fetch (offline, both sources down), try again this soon
+  /// instead of waiting for the next interval.
+  static const Duration photoRetryDelay = Duration(minutes: 5);
+
+  /// How often the photo pool is topped up with new photos, independent of the
+  /// wallpaper interval. Also keeps the Arc Photos screensaver fresh.
+  static const Duration photoPoolRefresh = Duration(hours: 3);
+
+  /// Credit to display while a 4K photo is on screen.
+  PhotoCredit? get photoWallpaperCredit {
+    final f = _photoFile;
+    if (!_settingsService.photoWallpaperEnabled || !_settingsService.photoWallpaperShowCredit || f == null) {
+      return null;
     }
-    return _settingsService.redditCurrentTitle;
+    return _settingsService.photoWallpaperCredits[PhotoWallpaperSource.idOf(f)];
   }
-
-  String? get redditWallpaperTitle =>
-      _settingsService.redditWallpaperEnabled && _redditFile != null ? _settingsService.redditCurrentTitle : null;
 
   /// Photographer credit to display while the Unsplash slideshow is on screen.
   String? get slideshowAuthor =>
@@ -91,7 +104,9 @@ class WallpaperService extends ChangeNotifier {
     orElse: () => FLauncherGradients.saintPetersburg,
   );
 
-  WallpaperService(this._settingsService) : _wallpaper = null {
+  WallpaperService(this._settingsService, {PhotoWallpaperSource Function(Directory)? photoSourceFactory})
+    : _photoSourceFactory = photoSourceFactory ?? PhotoWallpaperSource.new,
+      _wallpaper = null {
     _settingsService.addListener(_onSettingsChanged);
     _init();
   }
@@ -102,12 +117,11 @@ class WallpaperService extends ChangeNotifier {
   (bool, int) get _slideshowConfig =>
       (_settingsService.unsplashSlideshowEnabled, _settingsService.unsplashIntervalMinutes);
 
-  (bool, int, List<String>, String) _lastRedditConfig = (false, 0, [], '');
-  (bool, int, List<String>, String) get _redditConfig => (
-    _settingsService.redditWallpaperEnabled,
-    _settingsService.redditIntervalMinutes,
-    _settingsService.redditSubreddits,
-    _settingsService.redditSort,
+  (bool, int, PhotoSource) _lastPhotoConfig = (false, 0, PhotoSource.spotlight);
+  (bool, int, PhotoSource) get _photoConfig => (
+    _settingsService.photoWallpaperEnabled,
+    _settingsService.photoWallpaperIntervalMinutes,
+    _settingsService.photoWallpaperSource,
   );
 
   void _onSettingsChanged() {
@@ -122,15 +136,15 @@ class WallpaperService extends ChangeNotifier {
       _updateSlideshowState();
       _updateWallpaper(force: true);
     }
-    if (_initialized && _redditConfig != _lastRedditConfig) {
-      _lastRedditConfig = _redditConfig;
-      // Debounce while enabled so toggling several subreddits in a row triggers
-      // a single fetch instead of one per change.
-      _redditDebounce?.cancel();
-      if (_settingsService.redditWallpaperEnabled) {
-        _redditDebounce = Timer(redditConfigDebounce, _updateRedditState);
+    if (_initialized && _photoConfig != _lastPhotoConfig) {
+      _lastPhotoConfig = _photoConfig;
+      // Debounce while enabled so cycling through the interval or source
+      // choices triggers a single fetch instead of one per change.
+      _photoDebounce?.cancel();
+      if (_settingsService.photoWallpaperEnabled) {
+        _photoDebounce = Timer(photoConfigDebounce, _updatePhotoState);
       } else {
-        _updateRedditState();
+        _updatePhotoState();
       }
       _updateWallpaper(force: true);
     }
@@ -141,8 +155,10 @@ class WallpaperService extends ChangeNotifier {
     _settingsService.removeListener(_onSettingsChanged);
     _timer?.cancel();
     _slideshowTimer?.cancel();
-    _redditTimer?.cancel();
-    _redditDebounce?.cancel();
+    _photoTimer?.cancel();
+    _photoDebounce?.cancel();
+    _photoRetry?.cancel();
+    _photoFillTimer?.cancel();
     super.dispose();
   }
 
@@ -156,17 +172,29 @@ class WallpaperService extends ChangeNotifier {
     _wallpaperNightVideoFile = File("${directory.path}/wallpaper_night_video");
     _slideshow = UnsplashSlideshow(Directory("${directory.path}/slideshow"));
     _slideshowFile = newestCachedImage(_slideshow.cacheDir);
-    _redditSlideshow = RedditSlideshow(Directory("${directory.path}/reddit_slideshow"));
-    _redditFile = newestCachedImage(_redditSlideshow.cacheDir);
+    _photoSource = _photoSourceFactory(Directory("${directory.path}/photo_wallpaper"));
+    _photoFile = newestCachedImage(_photoSource.cacheDir);
+    if (_photoFile != null) _photoShown.add(PhotoWallpaperSource.idOf(_photoFile!));
+    unawaited(_deleteLegacyRedditCache(directory));
     _initialized = true;
 
     _lastTimeBasedEnabled = _settingsService.timeBasedWallpaperEnabled;
     _lastSlideshowConfig = _slideshowConfig;
-    _lastRedditConfig = _redditConfig;
+    _lastPhotoConfig = _photoConfig;
     _updateWallpaper();
     _updateTimerState();
     _updateSlideshowState();
-    _updateRedditState();
+    _updatePhotoState();
+  }
+
+  /// The Reddit wallpaper was removed; its cached images are dead weight.
+  Future<void> _deleteLegacyRedditCache(Directory directory) async {
+    try {
+      final legacy = Directory("${directory.path}/reddit_slideshow");
+      if (await legacy.exists()) await legacy.delete(recursive: true);
+    } catch (_) {
+      // Best effort only.
+    }
   }
 
   void _updateSlideshowState() {
@@ -199,30 +227,97 @@ class WallpaperService extends ChangeNotifier {
     _updateWallpaper(force: true);
   }
 
-  void _updateRedditState() {
-    _redditTimer?.cancel();
-    _redditTimer = null;
-    if (!_settingsService.redditWallpaperEnabled) return;
-    final interval = Duration(minutes: _settingsService.redditIntervalMinutes);
-    _redditTimer = Timer.periodic(interval, (_) => advanceRedditWallpaper());
-    final file = _redditFile;
-    if (file == null || DateTime.now().difference(file.lastModifiedSync()) >= interval) {
-      advanceRedditWallpaper();
+  void _updatePhotoState() {
+    _photoTimer?.cancel();
+    _photoTimer = null;
+    _photoRetry?.cancel();
+    _photoRetry = null;
+    _photoFillTimer?.cancel();
+    _photoFillTimer = null;
+    if (!_settingsService.photoWallpaperEnabled) return;
+    final source = _settingsService.photoWallpaperSource;
+    final sourceChanged = _photoSourceShown != null && _photoSourceShown != source;
+    _photoSourceShown = source;
+    // A new source should show its own photos now, not after the next top-up.
+    if (sourceChanged) _lastPhotoFill = null;
+    final interval = Duration(minutes: _settingsService.photoWallpaperIntervalMinutes);
+    _photoTimer = Timer.periodic(interval, (_) => advancePhotoWallpaper());
+    _photoFillTimer = Timer.periodic(photoPoolRefresh, (_) => _fillPhotoPool());
+    final file = _photoFile;
+    // Reuse the cached photo after a reboot unless it is already due for a change.
+    if (sourceChanged ||
+        file == null ||
+        !file.existsSync() ||
+        DateTime.now().difference(file.lastModifiedSync()) >= interval) {
+      advancePhotoWallpaper();
+    } else if (_photoSource.cachedPhotos().length < _photoSource.poolSize) {
+      _fillPhotoPool();
     }
   }
 
-  Future<void> advanceRedditWallpaper() async {
-    final result = await _redditSlideshow.next(
-      subreddits: _settingsService.redditSubreddits,
-      sort: RedditSort.fromKey(_settingsService.redditSort),
-      clientId: _settingsService.redditClientId.isNotEmpty ? _settingsService.redditClientId : null,
-      clientSecret: _settingsService.redditClientSecret.isNotEmpty ? _settingsService.redditClientSecret : null,
-      random: _random,
+  /// Downloads new photos into the pool and records their credits. Runs at most
+  /// once per [photoPoolRefresh] unless [force]d (nothing else to show).
+  Future<void> _fillPhotoPool({bool force = false}) async {
+    if (!_settingsService.photoWallpaperEnabled) return;
+    final last = _lastPhotoFill;
+    if (!force && last != null && DateTime.now().difference(last) < photoPoolRefresh) return;
+    _lastPhotoFill = DateTime.now();
+    final current = _photoFile;
+    final saved = await _photoSource.fillPool(
+      source: _settingsService.photoWallpaperSource,
+      seen: _settingsService.photoWallpaperSeen.toSet(),
+      protect: {if (current != null) PhotoWallpaperSource.idOf(current)},
     );
-    if (result == null || !_settingsService.redditWallpaperEnabled) return;
-    final (file, post) = result;
-    _redditFile = file;
-    await _settingsService.setRedditWallpaperInfo(title: post.title, author: post.author, subreddit: post.subreddit);
+    if (saved.isNotEmpty) await _settingsService.addPhotoWallpaperSeen(saved.map((p) => p.id));
+    // Keep credits for the photos still on disk only (the pool was just pruned).
+    final onDisk = _photoSource.cachedPhotos().map(PhotoWallpaperSource.idOf).toSet();
+    final credits = {..._settingsService.photoWallpaperCredits, for (final p in saved) p.id: p.credit}
+      ..removeWhere((id, _) => !onDisk.contains(id));
+    await _settingsService.setPhotoWallpaperCredits(credits);
+  }
+
+  /// The next pool photo for the home wallpaper: one from the chosen source if
+  /// there is one, else any other photo in the pool ([preferredOnly] false).
+  File? _pickPhoto({required bool preferredOnly}) {
+    final current = _photoFile;
+    final currentId = current == null ? null : PhotoWallpaperSource.idOf(current);
+    final cached = _photoSource.cachedPhotos();
+    final prefix = _settingsService.photoWallpaperSource.idPrefix;
+    final preferred = PhotoWallpaperSource.pickNext(
+      cached.where((f) => PhotoWallpaperSource.idOf(f).startsWith(prefix)).toList(),
+      currentId: currentId,
+      shownOrder: _photoShown,
+    );
+    if (preferred != null || preferredOnly) return preferred;
+    return PhotoWallpaperSource.pickNext(cached, currentId: currentId, shownOrder: _photoShown);
+  }
+
+  /// Shows the next 4K photo from the pool ("Change photo now" and the timer),
+  /// downloading more first when the pool has no other photo of the chosen source.
+  Future<void> advancePhotoWallpaper() async {
+    var next = _pickPhoto(preferredOnly: true);
+    if (next == null) {
+      // Wait for new photos; skip the top-up limit only when there is nothing else to show.
+      await _fillPhotoPool(force: _pickPhoto(preferredOnly: false) == null);
+      next = _pickPhoto(preferredOnly: false);
+    }
+    if (!_settingsService.photoWallpaperEnabled) return;
+    if (next == null) {
+      // Offline or both sources down with nothing else cached: keep the cached
+      // photo (or the next wallpaper in line), and try again soon.
+      if (_settingsService.photoWallpaperIntervalMinutes > photoRetryDelay.inMinutes) {
+        _photoRetry?.cancel();
+        _photoRetry = Timer(photoRetryDelay, advancePhotoWallpaper);
+      }
+      return;
+    }
+    _photoRetry?.cancel();
+    _photoFile = next;
+    final id = PhotoWallpaperSource.idOf(next);
+    _photoShown
+      ..remove(id)
+      ..add(id);
+    if (_photoShown.length > photoShownMax) _photoShown.removeAt(0);
     _updateWallpaper(force: true);
   }
 
@@ -238,7 +333,7 @@ class WallpaperService extends ChangeNotifier {
 
   File? _resolveActiveVideoFile() {
     if (!isInitialized) return null;
-    if (_settingsService.redditWallpaperEnabled) return null;
+    if (_settingsService.photoWallpaperEnabled) return null;
     if (_settingsService.unsplashSlideshowEnabled) return null;
 
     final now = DateTime.now();
@@ -273,9 +368,9 @@ class WallpaperService extends ChangeNotifier {
     ImageProvider? newWallpaper;
 
     final slideshowFile = _slideshowFile;
-    final redditFile = _redditFile;
-    if (_settingsService.redditWallpaperEnabled && redditFile != null && redditFile.existsSync()) {
-      newWallpaper = FileImage(redditFile);
+    final photoFile = _photoFile;
+    if (_settingsService.photoWallpaperEnabled && photoFile != null && photoFile.existsSync()) {
+      newWallpaper = FileImage(photoFile);
     } else if (_settingsService.unsplashSlideshowEnabled && slideshowFile != null && slideshowFile.existsSync()) {
       newWallpaper = FileImage(slideshowFile);
     } else if (videoFile != null) {
@@ -357,8 +452,8 @@ class WallpaperService extends ChangeNotifier {
   }
 
   Future<void> _saveImage(File sourceFile, File targetFile) async {
-    if (_settingsService.redditWallpaperEnabled) {
-      await _settingsService.setRedditWallpaperEnabled(false);
+    if (_settingsService.photoWallpaperEnabled) {
+      await _settingsService.setPhotoWallpaperEnabled(false);
     }
     if (_settingsService.unsplashSlideshowEnabled) {
       await _settingsService.setUnsplashSlideshowEnabled(false);
@@ -377,8 +472,8 @@ class WallpaperService extends ChangeNotifier {
       throw StateError('Unable to read the selected image');
     }
 
-    if (_settingsService.redditWallpaperEnabled) {
-      await _settingsService.setRedditWallpaperEnabled(false);
+    if (_settingsService.photoWallpaperEnabled) {
+      await _settingsService.setPhotoWallpaperEnabled(false);
     }
     if (_settingsService.unsplashSlideshowEnabled) {
       await _settingsService.setUnsplashSlideshowEnabled(false);
@@ -412,8 +507,8 @@ class WallpaperService extends ChangeNotifier {
       await pairedImage.delete();
     }
 
-    if (_settingsService.redditWallpaperEnabled) {
-      await _settingsService.setRedditWallpaperEnabled(false);
+    if (_settingsService.photoWallpaperEnabled) {
+      await _settingsService.setPhotoWallpaperEnabled(false);
     }
     if (_settingsService.unsplashSlideshowEnabled) {
       await _settingsService.setUnsplashSlideshowEnabled(false);
@@ -437,8 +532,8 @@ class WallpaperService extends ChangeNotifier {
     await cleanImageWallpaperFiles();
     await cleanVideoWallpaperFiles();
 
-    if (_settingsService.redditWallpaperEnabled) {
-      await _settingsService.setRedditWallpaperEnabled(false);
+    if (_settingsService.photoWallpaperEnabled) {
+      await _settingsService.setPhotoWallpaperEnabled(false);
     }
     if (_settingsService.unsplashSlideshowEnabled) {
       await _settingsService.setUnsplashSlideshowEnabled(false);
