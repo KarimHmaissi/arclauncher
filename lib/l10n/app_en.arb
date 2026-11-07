@@ -249,7 +249,7 @@
     "photoWallpaperFailed": "Couldn't get a new photo. Check your connection.",
     "photoScreensaverClock": "Clock on screensaver",
     "photoScreensaverUse": "Use as screensaver",
-    "photoScreensaverHint": "Pick \"Arc Photos\" in the screen saver list",
+    "photoScreensaverHint": "Pick \"Arc Photos\" in the screensaver list",
     "wallpaperInterval": "Change every",
     "wallpaperIntervalMinutes": "{minutes} min",
     "@wallpaperIntervalMinutes": {

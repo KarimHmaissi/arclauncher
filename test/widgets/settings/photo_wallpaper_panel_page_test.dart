@@ -71,7 +71,7 @@ void main() {
     expect(find.text('Change photo now'), findsNothing);
     expect(find.text('Clock on screensaver'), findsOneWidget);
     expect(find.text('Use as screensaver'), findsOneWidget);
-    expect(find.text('Pick "Arc Photos" in the screen saver list'), findsOneWidget);
+    expect(find.text('Pick "Arc Photos" in the screensaver list'), findsOneWidget);
   });
 
   testWidgets("shows 'Change photo now' while on", (tester) async {

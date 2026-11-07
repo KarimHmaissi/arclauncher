@@ -550,7 +550,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get photoScreensaverHint =>
-      'Pick \"Arc Photos\" in the screen saver list';
+      'Pick \"Arc Photos\" in the screensaver list';
 
   @override
   String get wallpaperInterval => 'Change every';

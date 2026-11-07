@@ -10,9 +10,12 @@ Changes in KarimHmaissi/arclauncher on top of upstream meddouribadis/arclauncher
   photo, with Arc's clock style and the photo credit. Any button or touch
   closes it at once: no fade-out, and the button press doesn't leak
   through to Home. Arc's clock screensaver closes the same instant way.
+  While it is the chosen screensaver, Arc keeps its photos topped up even
+  when the wallpaper is something else.
 - **Home doesn't fade back in.** If the wallpaper changed while a
-  screensaver or app was in front, Arc shows the new one immediately on
-  return instead of replaying the 1.5 s crossfade.
+  screensaver or app was in front, Arc decodes the new one while away and
+  shows it on the first frame back, instead of replaying the 1.5 s
+  crossfade.
 - **4K photos replace the Reddit wallpaper.** Reddit now refuses all
   unauthenticated requests, so the Reddit source and its settings are gone.
   Settings › Wallpaper › 4K photos shows 3840×2160 photos from Windows
@@ -20,9 +23,10 @@ Changes in KarimHmaissi/arclauncher on top of upstream meddouribadis/arclauncher
   device's language and region, with the other source as a fallback.
   Up to 24 photos are kept on disk (about 60-90 MB), topped up a few at a
   time every few hours; the wallpaper moves through them at its own
-  interval. Offline, the cached photos stay; with nothing cached, the
-  gradient. If the Reddit wallpaper was on, 4K photos are switched on once
-  in its place.
+  interval, and a restart keeps the photo that was on screen. Offline, the
+  cached photos stay; with nothing cached, your previous wallpaper (or the
+  gradient) shows. If the Reddit wallpaper was on, 4K photos are switched
+  on once in its place.
 
 ## 2026-11-05
 

@@ -1115,7 +1115,7 @@ abstract class AppLocalizations {
   /// No description provided for @photoScreensaverHint.
   ///
   /// In en, this message translates to:
-  /// **'Pick \"Arc Photos\" in the screen saver list'**
+  /// **'Pick \"Arc Photos\" in the screensaver list'**
   String get photoScreensaverHint;
 
   /// No description provided for @wallpaperInterval.
